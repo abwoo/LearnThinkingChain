@@ -3,6 +3,7 @@ import type { ProtocolMap } from '../types/Protocols';
 import type { ExtensionSettings } from '../types/Settings';
 import type { SessionState } from '../types/Session';
 import type { ResponseRecord } from '../types/Response';
+import '../app/styles.css';
 import { InputInterceptor } from './InputInterceptor';
 import { buildPrompt, updateLearningDebt, parseStructuredResponse } from '../core/Index';
 import { defaultLogger } from '../utils/logger';
@@ -94,6 +95,7 @@ let protocols: ProtocolMap = { ...DEFAULT_PROTOCOLS };
 let session: SessionState = { ...DEFAULT_SESSION };
 let lastWrappedInput = '';
 let lastWrappedAt = 0;
+let inputElement: HTMLElement | HTMLInputElement | HTMLTextAreaElement | null = null;
 
 const interceptor = new InputInterceptor({
   selectors: [
@@ -106,11 +108,16 @@ const interceptor = new InputInterceptor({
     'textarea[aria-label*="消息"]',
     'textarea'
   ],
+  onReady: (el) => {
+    inputElement = el;
+    toggleInputGlow();
+  },
   onSubmit: (value, el) => {
     if (!isActive) return;
     if (value.startsWith('<<<LTC_START>>>')) return;
     const now = Date.now();
     if (value === lastWrappedInput && now - lastWrappedAt < 1200) return;
+    addToHistory(value);
     const update = updateLearningDebt(value, profile, session, settings, now);
     profile = update.profile;
     session = update.session;
@@ -167,6 +174,7 @@ function loadInitialState(): void {
       if (!data.ltc_protocols) {
         chrome.storage.local.set({ ltc_protocols: DEFAULT_PROTOCOLS });
       }
+      injectFloatingHub();
       interceptor.start();
       startResponseObserver();
     }
@@ -181,6 +189,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes.ltc_settings) settings = normalizeSettings(changes.ltc_settings.newValue);
   if (changes.ltc_protocols) protocols = normalizeProtocols(changes.ltc_protocols.newValue);
   if (changes.ltc_session) session = normalizeSession(changes.ltc_session.newValue);
+  if (changes.ltc_active) {
+    const checkbox = document.getElementById('ltc-toggle-checkbox') as HTMLInputElement | null;
+    if (checkbox) checkbox.checked = isActive;
+    toggleInputGlow();
+  }
+  if (changes.ltc_mode) {
+    rebuildModeSelect();
+    updateFrameworkPreview();
+  }
 });
 
 function startResponseObserver(): void {
@@ -241,3 +258,198 @@ function findLatestResponseText(): string {
 
 logger.info('Content script initialized');
 loadInitialState();
+
+function injectFloatingHub(): void {
+  if (document.getElementById('ltc-hub')) return;
+  const hub = document.createElement('div');
+  hub.id = 'ltc-hub';
+  hub.className = 'ltc-floating-hub';
+  hub.innerHTML = `
+    <div class="ltc-hub-header" id="ltc-header">
+      <div class="ltc-brand">
+        <span style="color:var(--accent-blue); font-size:14px;">⚡</span> THINKING CHAIN
+      </div>
+      <div class="ltc-drag-indicator"></div>
+    </div>
+    <div class="ltc-controls-row">
+      <div class="ltc-toggle-group">
+        <label class="ltc-switch">
+          <input type="checkbox" id="ltc-toggle-checkbox" ${isActive ? 'checked' : ''}>
+          <span class="ltc-slider"></span>
+        </label>
+        <select id="ltc-mode-select" class="ltc-mode-select" style="margin-left:12px; flex:1;"></select>
+      </div>
+    </div>
+    <button class="ltc-expand-btn" id="ltc-expand-btn">▼ Open Cognitive Panel</button>
+    <div class="ltc-info-panel" id="ltc-info-panel">
+      <div class="ltc-panel-content">
+        <div class="ltc-panel-row-header">
+          <div class="ltc-section-title">ACTIVE PROTOCOL (Q1-Q4)</div>
+        </div>
+        <div class="ltc-framework-box" id="ltc-framework-text">Loading...</div>
+        <div class="ltc-panel-row-header">
+          <div class="ltc-section-title">THINKING PATH MAP</div>
+        </div>
+        <div class="ltc-path-map">
+          <span>Start</span><span class="ltc-path-arrow">→</span>
+          <span>Wrong Turn</span><span class="ltc-path-arrow">→</span>
+          <span>Insight</span><span class="ltc-path-arrow">→</span>
+          <span>Target</span>
+        </div>
+        <div class="ltc-panel-row-header">
+          <div class="ltc-section-title">SESSION HISTORY</div>
+          <button id="ltc-clear-history" class="ltc-mini-btn" title="Clear History">🗑️</button>
+        </div>
+        <div class="ltc-history-list" id="ltc-history-list"></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(hub);
+  setupDraggable(hub, hub.querySelector('#ltc-header') as HTMLElement);
+  bindControls(hub);
+  rebuildModeSelect();
+  updateFrameworkPreview();
+  loadHistory();
+}
+
+function bindControls(hub: HTMLElement): void {
+  const toggle = hub.querySelector('#ltc-toggle-checkbox') as HTMLInputElement | null;
+  const modeSelect = hub.querySelector('#ltc-mode-select') as HTMLSelectElement | null;
+  const expandBtn = hub.querySelector('#ltc-expand-btn') as HTMLButtonElement | null;
+  const clearBtn = hub.querySelector('#ltc-clear-history') as HTMLButtonElement | null;
+
+  toggle?.addEventListener('change', (event) => {
+    const checked = (event.target as HTMLInputElement).checked;
+    isActive = checked;
+    chrome.storage.local.set({ ltc_active: isActive });
+    toggleInputGlow();
+  });
+
+  modeSelect?.addEventListener('change', (event) => {
+    const value = (event.target as HTMLSelectElement).value;
+    currentMode = value;
+    chrome.storage.local.set({ ltc_mode: currentMode });
+    updateFrameworkPreview();
+  });
+
+  expandBtn?.addEventListener('click', () => {
+    hub.classList.toggle('expanded');
+    expandBtn.innerText = hub.classList.contains('expanded') ? '▲ Close Panel' : '▼ Open Cognitive Panel';
+  });
+
+  clearBtn?.addEventListener('click', () => {
+    if (!confirm('Clear local session history?')) return;
+    chrome.storage.local.set({ ltc_prompt_history: [] });
+    loadHistory();
+  });
+}
+
+function rebuildModeSelect(): void {
+  const select = document.getElementById('ltc-mode-select') as HTMLSelectElement | null;
+  if (!select) return;
+  select.innerHTML = '';
+  Object.keys(protocols).forEach((key) => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = protocols[key].name || key;
+    option.selected = currentMode === key;
+    select.appendChild(option);
+  });
+  if (!protocols[currentMode]) {
+    currentMode = Object.keys(protocols)[0] ?? 'novice';
+    chrome.storage.local.set({ ltc_mode: currentMode });
+    select.value = currentMode;
+  }
+}
+
+function updateFrameworkPreview(): void {
+  const el = document.getElementById('ltc-framework-text');
+  if (!el) return;
+  const mode = protocols[currentMode] ?? protocols.novice;
+  const compact = (text: string, max = 64) => {
+    const clean = text.replace(/\s+/g, ' ').trim();
+    return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+  };
+  el.innerHTML = `
+    <span style="color:#ff6b6b">Q1: ${compact(mode.q1_blind_spot)}</span><br>
+    <span style="color:#feca57">Q2: ${compact(mode.q2_entropy)}</span><br>
+    <span style="color:#48dbfb">Q3: ${compact(mode.q3_backtrack)}</span><br>
+    <span style="color:#1dd1a1">Q4: ${compact(mode.q4_handover)}</span>
+  `;
+}
+
+function loadHistory(): void {
+  chrome.storage.local.get(['ltc_prompt_history'], (result) => {
+    const history = Array.isArray(result.ltc_prompt_history) ? result.ltc_prompt_history : [];
+    const list = document.getElementById('ltc-history-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (history.length === 0) {
+      list.innerHTML =
+        '<div style="padding:10px; color:rgba(255,255,255,0.3); font-size:11px; text-align:center;">No active thoughts</div>';
+      return;
+    }
+    history.forEach((text: string) => {
+      const compact = text.replace(/\s+/g, ' ').trim();
+      const shortText = compact.length > 42 ? `${compact.slice(0, 41)}…` : compact;
+      const item = document.createElement('div');
+      item.className = 'ltc-history-item';
+      item.innerHTML = `<span class="ltc-history-text">${shortText}</span>`;
+      item.title = compact;
+      item.addEventListener('click', () => interceptor.setValue(text));
+      list.appendChild(item);
+    });
+  });
+}
+
+function addToHistory(text: string): void {
+  if (!text) return;
+  chrome.storage.local.get(['ltc_prompt_history'], (result) => {
+    let history = Array.isArray(result.ltc_prompt_history) ? result.ltc_prompt_history : [];
+    if (history[0] !== text) {
+      history.unshift(text);
+      if (history.length > 6) history = history.slice(0, 6);
+      chrome.storage.local.set({ ltc_prompt_history: history });
+      loadHistory();
+    }
+  });
+}
+
+function toggleInputGlow(): void {
+  if (!inputElement) return;
+  inputElement.classList.toggle('ltc-thinking-active', isActive);
+}
+
+function setupDraggable(element: HTMLElement, handle: HTMLElement): void {
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  handle.addEventListener('mousedown', (event) => {
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    const rect = element.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    element.style.right = 'auto';
+    element.style.left = `${initialLeft}px`;
+    element.style.top = `${initialTop}px`;
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (event) => {
+    if (!dragging) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    element.style.left = `${initialLeft + dx}px`;
+    element.style.top = `${initialTop + dy}px`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.userSelect = '';
+  });
+}

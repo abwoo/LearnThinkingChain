@@ -29,7 +29,7 @@
         "src/content/main.ts"
       ],
       "css": [
-        "styles.css"
+        "src/app/styles.css"
       ]
     }
   ],
