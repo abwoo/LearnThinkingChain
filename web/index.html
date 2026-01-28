@@ -46,7 +46,11 @@
             <section id="control-view" class="view active">
                 <div class="view-header">
                     <h2>控制中心 <span class="dim">Control Center</span></h2>
-                    <button class="btn-glass" id="reset-profile">格式化核心</button>
+                    <div class="sync-controls" style="display:flex; align-items:center; gap:10px;">
+                        <input type="text" id="extension-id-input" placeholder="输入插件 ID"
+                            style="background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:8px; border-radius:10px; width:150px; font-size:12px;">
+                        <button class="btn-glass" id="reset-profile">格式化核心</button>
+                    </div>
                 </div>
 
                 <div class="bento-grid">

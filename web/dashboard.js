@@ -1,10 +1,11 @@
 /**
  * LearnThinkingChain - Cognitive Hub v4 (Web App Core)
- * Handles SPA Routing, State Management, and Cross-Sync
+ * This version supports communicating with the local extension FROM the cloud (github.io).
  */
 
 const CloudHub = {
     state: {
+        extensionId: '',
         currentView: 'control',
         active: false,
         mode: 'novice',
@@ -14,23 +15,52 @@ const CloudHub = {
 
     async init() {
         console.log("[LTC Hub] Initializing...");
+
+        // Load saved extension ID from localStorage (browser-native)
+        this.state.extensionId = localStorage.getItem('ltc_extension_id') || '';
+        const idInput = document.getElementById('extension-id-input');
+        if (idInput) {
+            idInput.value = this.state.extensionId;
+            idInput.addEventListener('change', (e) => {
+                this.state.extensionId = e.target.value.trim();
+                localStorage.setItem('ltc_extension_id', this.state.extensionId);
+                this.syncWithExtension();
+            });
+        }
+
         await this.syncWithExtension();
         this.bindEvents();
         this.render();
+
+        // Polling sync for cloud demo
+        setInterval(() => this.syncWithExtension(), 3000);
     },
 
     async syncWithExtension() {
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-            const data = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_profile', 'ltc_last_thinking_steps']);
-            this.state.active = data.ltc_active || false;
-            this.state.mode = data.ltc_mode || 'novice';
-            this.state.profile = data.ltc_profile || { missed_points: [], thinking_styles: [] };
-            this.state.history = data.ltc_last_thinking_steps || [];
+        if (!this.state.extensionId) {
+            console.warn("[LTC Hub] No Extension ID set. Sync disabled.");
+            return;
+        }
+
+        // Use chrome.runtime.sendMessage for externally_connectable communication
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+            chrome.runtime.sendMessage(this.state.extensionId, { type: "GET_STATE" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("[LTC Hub] Connection failed:", chrome.runtime.lastError.message);
+                    return;
+                }
+                if (response) {
+                    this.state.active = response.ltc_active || false;
+                    this.state.mode = response.ltc_mode || 'novice';
+                    this.state.profile = response.ltc_profile || { missed_points: [], thinking_styles: [] };
+                    this.state.history = response.ltc_last_thinking_steps || [];
+                    this.render();
+                }
+            });
         }
     },
 
     bindEvents() {
-        // SPA Navigation
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 const target = e.currentTarget.dataset.view;
@@ -38,34 +68,33 @@ const CloudHub = {
             });
         });
 
-        // Memory Interaction
         document.getElementById('add-gap-btn')?.addEventListener('click', () => {
             const input = document.getElementById('new-gap-input');
             const val = input.value.trim();
-            if (val) {
+            if (val && this.state.extensionId) {
                 this.state.profile.missed_points.push(val);
+                this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
                 input.value = '';
-                this.saveState();
             }
         });
 
-        // Preview Interaction
         document.getElementById('preview-test-input')?.addEventListener('input', (e) => {
             this.updatePreview(e.target.value);
         });
 
-        // Profile Wipe
         document.getElementById('reset-profile')?.addEventListener('click', () => {
-            if (confirm("WARNING: Wipe all cognitive memory?")) {
-                this.state.profile = { missed_points: [], thinking_styles: [] };
-                this.saveState();
+            if (confirm("WARNING: Wipe all cognitive memory?") && this.state.extensionId) {
+                this.sendToExtension({ type: "WIPE_MEMORY" });
             }
         });
+    },
 
-        // Listen for storage changes
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-            chrome.storage.onChanged.addListener(() => {
-                this.syncWithExtension().then(() => this.render());
+    sendToExtension(message) {
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage && this.state.extensionId) {
+            chrome.runtime.sendMessage(this.state.extensionId, message, (response) => {
+                if (response && response.success) {
+                    this.syncWithExtension();
+                }
             });
         }
     },
@@ -81,10 +110,10 @@ const CloudHub = {
 
     updatePreview(rawInput) {
         const protocols = {
-            'novice': '[IDENTITY: Peer Learner]\n- Simulate ignorance\n- Try/Fail loop\n- Explain meta-shift',
-            'socratic': '[IDENTITY: Socratic Mentor]\n- No direct answers\n- Counter-questioning',
-            'first_principles': '[IDENTITY: First-Principles Analyst]\n- Atomize facts\n- Rebuild deduction',
-            'analogy': '[IDENTITY: Analogy Artist]\n- Map to daily vida\n- Bridge metaphor'
+            'novice': '[IDENTITY: Peer Learner]\n1. Initial Overwhelm\n2. Noise/Intuition\n3. Trial & Error\n4. Meta-Shift',
+            'socratic': '[IDENTITY: Socratic Mentor]\n1. No direct answers\n2. Guiding counter-questions',
+            'first_principles': '[IDENTITY: First-Principles]\n1. Atomize facts\n2. Rebuild logically',
+            'analogy': '[IDENTITY: Analogy Artist]\n1. Map to daily life\n2. Bridge back'
         };
         const template = protocols[this.state.mode] || protocols.novice;
         const codeBox = document.getElementById('current-protocol-code');
@@ -93,27 +122,21 @@ const CloudHub = {
         }
     },
 
-    async saveState() {
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-            await chrome.storage.local.set({ 'ltc_profile': this.state.profile });
-            this.render();
-        }
-    },
-
     render() {
-        // Render Memory Tags
         const list = document.getElementById('gaps-list');
         if (list) {
             list.innerHTML = '';
             this.state.profile.missed_points.forEach((gap, i) => {
                 const li = document.createElement('li');
-                li.className = 'tag-interactive';
-                li.innerHTML = `${gap} <span class="remove" onClick="window.CloudHub.deleteTag(${i})">×</span>`;
+                li.className = 'tag-interactive animate-in';
+                li.innerHTML = `${gap} <span class="remove" data-index="${i}">×</span>`;
                 list.appendChild(li);
+            });
+            list.querySelectorAll('.remove').forEach(btn => {
+                btn.onclick = (e) => this.deleteTag(e.target.dataset.index);
             });
         }
 
-        // Render Live Chain
         const chain = document.getElementById('live-chain');
         if (chain) {
             chain.innerHTML = this.state.history.length > 0 ? '' : '<p class="dim">No active pulse detected...</p>';
@@ -127,15 +150,15 @@ const CloudHub = {
             });
         }
 
-        // Pulse Status
-        document.getElementById('active-mode').innerText = this.state.mode.toUpperCase();
+        const modeEl = document.getElementById('active-mode');
+        if (modeEl) modeEl.innerText = this.state.mode.toUpperCase();
+        this.updatePreview(document.getElementById('preview-test-input')?.value || "");
     },
 
     deleteTag(index) {
         this.state.profile.missed_points.splice(index, 1);
-        this.saveState();
+        this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
     }
 };
 
-window.CloudHub = CloudHub;
-CloudHub.init();
+document.addEventListener('DOMContentLoaded', () => CloudHub.init());
