@@ -1,4 +1,4 @@
-# Standard workflow for deploying static content to GitHub Pages
+# Standard workflow for deploying static content to GitHub Pages - v4.1 (Corrected Syntax)
 name: Deploy static content to Pages
 
 on:
