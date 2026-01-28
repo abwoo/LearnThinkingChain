@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LearnThinkingChain</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <div class="popup-root">
+      <h1>LearnThinkingChain</h1>
+      <div class="stat">
+        <span class="label">Status</span>
+        <span id="status-val" class="value">Loading...</span>
+      </div>
+      <div class="profile-card">
+        <div class="stat">
+          <span class="label">Knowledge Gaps</span>
+          <div id="gaps-val" class="value">None yet</div>
+        </div>
+        <div class="stat">
+          <span class="label">Thinking Styles</span>
+          <div id="styles-val" class="value">Analyzing...</div>
+        </div>
+      </div>
+      <button id="open-dashboard" class="primary-btn">查看详细认知看板</button>
+      <div class="footer">Cognitive Process Emulator for Gemini</div>
+    </div>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

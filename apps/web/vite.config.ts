@@ -19,7 +19,8 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html')
       }
-    }
+    },
+    emptyOutDir: true
   },
   base: '/LearnThinkingChain/'
 });

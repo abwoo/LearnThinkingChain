@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+*.config.js
+*.config.ts
+vite.config.ts
+vite.dashboard.config.ts
+apps/extension/vite.config.ts
+apps/web/vite.config.ts
+scripts/
+packages/shared/supabase/schema.sql
