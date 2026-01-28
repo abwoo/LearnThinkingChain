@@ -16,12 +16,22 @@ let userProfile = {
     hidden_constraint_failures: 0,
     thinking_trend_counts: {},
     learning_debt: {
-        hidden_constraint: 0
+        hidden_constraint: 0,
+        by_topic: {},
+        sessions: []
     },
+    last_session_id: "",
     last_updated: Date.now()
 };
 let lastWrappedInput = "";
 let lastWrappedAt = 0;
+let sessionState = {
+    id: "",
+    topic: "general",
+    started_at: 0,
+    last_event_at: 0
+};
+const SESSION_GAP_MS = 30 * 60 * 1000;
 
 // Q1-Q4 COGNITIVE FRAMEWORK DEFINITIONS
 const DEFAULT_PROTOCOLS = {
@@ -74,13 +84,24 @@ function normalizeProfile(profile) {
         meta_cognitive_level: 1,
         hidden_constraint_failures: 0,
         thinking_trend_counts: {},
-        learning_debt: { hidden_constraint: 0 },
+        learning_debt: { hidden_constraint: 0, by_topic: {}, sessions: [] },
+        last_session_id: "",
         last_updated: Date.now()
     };
     const merged = { ...base, ...(profile || {}) };
     merged.learning_debt = { ...base.learning_debt, ...(merged.learning_debt || {}) };
     merged.thinking_trend_counts = { ...base.thinking_trend_counts, ...(merged.thinking_trend_counts || {}) };
     return merged;
+}
+
+function normalizeSession(session) {
+    const base = {
+        id: "",
+        topic: "general",
+        started_at: 0,
+        last_event_at: 0
+    };
+    return { ...base, ...(session || {}) };
 }
 
 function normalizeProtocols(protocols) {
@@ -122,10 +143,11 @@ function rebuildModeSelect() {
 }
 
 // Load initial state
-chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode', 'ltc_protocols'], (result) => {
+chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode', 'ltc_protocols', 'ltc_session'], (result) => {
     isActive = result.ltc_active || false;
     currentMode = result.ltc_mode || "novice";
     userProfile = normalizeProfile(result.ltc_profile);
+    sessionState = normalizeSession(result.ltc_session);
     if (!result.ltc_protocols) {
         chrome.storage.local.set({ 'ltc_protocols': DEFAULT_PROTOCOLS });
     }
@@ -139,6 +161,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
     if (changes.ltc_profile) {
         userProfile = normalizeProfile(changes.ltc_profile.newValue);
+    }
+    if (changes.ltc_session) {
+        sessionState = normalizeSession(changes.ltc_session.newValue);
     }
     if (changes.ltc_protocols) {
         applyProtocols(changes.ltc_protocols.newValue);
@@ -443,7 +468,7 @@ function handleSubmission(inputArea) {
 
     updateLearningDebt(rawInput);
     userProfile.last_updated = Date.now();
-    chrome.storage.local.set({ 'ltc_profile': userProfile });
+    chrome.storage.local.set({ 'ltc_profile': userProfile, 'ltc_session': sessionState });
 
     addToHistory(rawInput); // Save user's original thought
 
@@ -470,6 +495,10 @@ function handleSubmission(inputArea) {
 }
 
 function updateLearningDebt(rawInput) {
+    const now = Date.now();
+    const topic = detectTopic(rawInput);
+    ensureSession(topic, now);
+
     const hiddenConstraintSignals = [
         /隐藏条件/i,
         /约束/i,
@@ -488,6 +517,11 @@ function updateLearningDebt(rawInput) {
     if (hitHiddenConstraint) {
         userProfile.hidden_constraint_failures += 1;
         userProfile.learning_debt.hidden_constraint = userProfile.hidden_constraint_failures;
+        incrementTopicDebt(topic, true);
+        incrementSessionDebt(true);
+    } else {
+        incrementTopicDebt(topic, false);
+        incrementSessionDebt(false);
     }
 
     const trendSignals = [
@@ -501,6 +535,69 @@ function updateLearningDebt(rawInput) {
             userProfile.thinking_trend = signal.label;
         }
     });
+}
+
+function detectTopic(rawInput) {
+    const topicSignals = [
+        { key: 'mechanics', label: '力学', regex: /受力|力学|牛顿|摩擦|速度|加速度|动量|功|能量/i },
+        { key: 'circuits', label: '电路', regex: /电路|电阻|电容|电感|电流|电压|欧姆/i },
+        { key: 'math', label: '数学', regex: /函数|极限|导数|积分|矩阵|向量|概率|统计/i },
+        { key: 'cs', label: '编程', regex: /算法|复杂度|递归|指针|并发|线程|数据库/i }
+    ];
+    const hit = topicSignals.find((signal) => signal.regex.test(rawInput));
+    return hit ? hit.label : 'general';
+}
+
+function ensureSession(topic, now) {
+    const isNew =
+        !sessionState.id ||
+        !sessionState.last_event_at ||
+        (now - sessionState.last_event_at > SESSION_GAP_MS) ||
+        (sessionState.topic && sessionState.topic !== topic);
+
+    if (isNew) {
+        const sessionId = `S${now.toString(36)}`;
+        sessionState = {
+            id: sessionId,
+            topic,
+            started_at: now,
+            last_event_at: now
+        };
+        userProfile.last_session_id = sessionId;
+        userProfile.learning_debt.sessions.unshift({
+            id: sessionId,
+            topic,
+            started_at: now,
+            last_event_at: now,
+            total_prompts: 0,
+            hidden_constraint_failures: 0
+        });
+        if (userProfile.learning_debt.sessions.length > 20) {
+            userProfile.learning_debt.sessions = userProfile.learning_debt.sessions.slice(0, 20);
+        }
+    } else {
+        sessionState.last_event_at = now;
+    }
+}
+
+function incrementTopicDebt(topic, hitHidden) {
+    if (!userProfile.learning_debt.by_topic[topic]) {
+        userProfile.learning_debt.by_topic[topic] = {
+            total_prompts: 0,
+            hidden_constraint_failures: 0
+        };
+    }
+    const topicStats = userProfile.learning_debt.by_topic[topic];
+    topicStats.total_prompts += 1;
+    if (hitHidden) topicStats.hidden_constraint_failures += 1;
+}
+
+function incrementSessionDebt(hitHidden) {
+    const session = userProfile.learning_debt.sessions.find((s) => s.id === sessionState.id);
+    if (!session) return;
+    session.total_prompts += 1;
+    session.last_event_at = sessionState.last_event_at;
+    if (hitHidden) session.hidden_constraint_failures += 1;
 }
 
 function generateCognitivePrompt(rawInput) {

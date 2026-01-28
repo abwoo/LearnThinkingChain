@@ -96,7 +96,7 @@
 
                     <div class="bento-card medium glass">
                         <h3>框架网络</h3>
-                        <div id="framework-network" class="network-stack"></div>
+                        <svg id="framework-network" class="network-graph" viewBox="0 0 520 260" role="img" aria-label="框架网络图"></svg>
                     </div>
 
                     <div class="bento-card medium glass">
@@ -141,6 +141,7 @@
                         </div>
                         <ul id="gaps-list" class="tag-cloud"></ul>
                         <div class="tag-row" id="knowledge-gaps"></div>
+                        <div class="anchor-list" id="knowledge-gaps-detailed"></div>
                     </div>
                     <div class="glass">
                         <h3>思维方式</h3>
@@ -156,6 +157,16 @@
                             <div class="metric-card">
                                 <span class="metric-label">DEBT</span>
                                 <span class="metric-value learning-debt-count">0</span>
+                            </div>
+                        </div>
+                        <div class="debt-panel">
+                            <div>
+                                <div class="panel-title">按主题聚合</div>
+                                <div id="learning-debt-topics" class="debt-list"></div>
+                            </div>
+                            <div>
+                                <div class="panel-title">按会话聚合</div>
+                                <div id="learning-debt-sessions" class="debt-list"></div>
                             </div>
                         </div>
                         <div class="action-row">

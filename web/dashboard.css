@@ -318,34 +318,34 @@ textarea {
 }
 
 /* Network */
-.network-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.network-graph {
+    width: 100%;
+    height: 220px;
+    border: 1px dashed var(--glass-border);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
-.network-node {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--glass-border);
-    border-radius: 14px;
-    padding: 12px 14px;
+.graph-line {
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 2;
 }
 
-.node-title {
+.graph-node-circle {
+    fill: rgba(255, 255, 255, 0.08);
+    stroke: rgba(255, 255, 255, 0.4);
+    stroke-width: 1.5;
+}
+
+.graph-node-text {
+    fill: var(--text-high);
     font-size: 12px;
     font-weight: 700;
-    margin-bottom: 6px;
 }
 
-.node-desc {
+.graph-legend {
+    fill: var(--text-low);
     font-size: 12px;
-    color: var(--text-low);
-    line-height: 1.4;
-}
-
-.network-connector {
-    text-align: center;
-    color: var(--text-low);
 }
 
 /* Workshop & Tags */
@@ -369,6 +369,31 @@ textarea {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--glass-border);
     font-size: 12px;
+}
+
+.anchor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.anchor-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 12px;
+}
+
+.anchor-name {
+    color: var(--text-high);
+}
+
+.anchor-count {
+    color: var(--text-low);
 }
 
 .tag-interactive {
@@ -406,6 +431,34 @@ textarea {
     gap: 12px;
     margin-top: 12px;
     flex-wrap: wrap;
+}
+
+.debt-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.panel-title {
+    font-size: 12px;
+    color: var(--text-low);
+    margin-bottom: 6px;
+}
+
+.debt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.debt-row {
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
 }
 
 .editor-header {

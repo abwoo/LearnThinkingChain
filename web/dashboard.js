@@ -47,7 +47,11 @@ const CloudHub = {
         this.render();
 
         // Polling sync for cloud demo
-        setInterval(() => this.syncWithExtension(), 3000);
+        setInterval(() => this.syncWithExtension(), 1000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) this.syncWithExtension();
+        });
+        window.addEventListener('focus', () => this.syncWithExtension());
     },
 
     async syncWithExtension() {
@@ -96,6 +100,7 @@ const CloudHub = {
                 this.state.profile.missed_points.push(val);
                 this.state.profile.knowledge_gaps.push(val);
                 this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
+                this.renderKnowledgeGaps();
                 input.value = '';
             }
         });
@@ -132,12 +137,16 @@ const CloudHub = {
             this.state.profile.hidden_constraint_failures += 1;
             this.state.profile.learning_debt.hidden_constraint = this.state.profile.hidden_constraint_failures;
             this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
+            this.renderLearningDebtDetails();
         });
 
         document.getElementById('reset-learning-debt')?.addEventListener('click', () => {
             this.state.profile.hidden_constraint_failures = 0;
             this.state.profile.learning_debt.hidden_constraint = 0;
+            this.state.profile.learning_debt.by_topic = {};
+            this.state.profile.learning_debt.sessions = [];
             this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
+            this.renderLearningDebtDetails();
         });
     },
 
@@ -303,6 +312,8 @@ ${rawInput}`;
             }
         }
 
+        this.renderKnowledgeGaps();
+        this.renderLearningDebtDetails();
         this.renderFrameworkNetwork();
         const modeEl = document.getElementById('active-mode');
         if (modeEl) modeEl.innerText = this.state.mode.toUpperCase();
@@ -313,6 +324,7 @@ ${rawInput}`;
         this.state.profile.missed_points.splice(index, 1);
         this.state.profile.knowledge_gaps.splice(index, 1);
         this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
+        this.renderKnowledgeGaps();
     },
     refreshProtocolEditor() {
         const editor = document.getElementById('protocol-json-editor');
@@ -329,18 +341,53 @@ ${rawInput}`;
         if (!container) return;
         const mode = this.getProtocolForMode();
         const nodes = [
-            { id: 'Q1', label: '认知盲区', desc: mode.q1_blind_spot || '识别噪声与误导线索' },
-            { id: 'Q2', label: '试错模拟', desc: mode.q2_entropy || '沿直觉走到撞墙' },
-            { id: 'Q3', label: '底层回溯', desc: mode.q3_backtrack || '回到基础概念' },
-            { id: 'Q4', label: '认知交接', desc: mode.q4_handover || '开放式引导' }
+            { id: 'Q1', label: '认知盲区', desc: mode.q1_blind_spot || '识别噪声与误导线索', x: 80, y: 60 },
+            { id: 'Q2', label: '试错模拟', desc: mode.q2_entropy || '沿直觉走到撞墙', x: 260, y: 40 },
+            { id: 'Q3', label: '底层回溯', desc: mode.q3_backtrack || '回到基础概念', x: 260, y: 170 },
+            { id: 'Q4', label: '认知交接', desc: mode.q4_handover || '开放式引导', x: 440, y: 120 }
         ];
-        container.innerHTML = nodes.map((node, index) => `
-            <div class="network-node">
-                <div class="node-title">${node.id} · ${node.label}</div>
-                <div class="node-desc">${node.desc}</div>
-            </div>
-            ${index < nodes.length - 1 ? '<div class="network-connector">↓</div>' : ''}
-        `).join('');
+        const svg = container;
+        svg.innerHTML = '';
+        const ns = 'http://www.w3.org/2000/svg';
+        const linkPairs = [
+            [0, 1],
+            [1, 2],
+            [2, 3]
+        ];
+        linkPairs.forEach(([a, b]) => {
+            const line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', nodes[a].x);
+            line.setAttribute('y1', nodes[a].y);
+            line.setAttribute('x2', nodes[b].x);
+            line.setAttribute('y2', nodes[b].y);
+            line.setAttribute('class', 'graph-line');
+            svg.appendChild(line);
+        });
+        nodes.forEach((node) => {
+            const group = document.createElementNS(ns, 'g');
+            group.setAttribute('class', 'graph-node');
+            const circle = document.createElementNS(ns, 'circle');
+            circle.setAttribute('cx', node.x);
+            circle.setAttribute('cy', node.y);
+            circle.setAttribute('r', 28);
+            circle.setAttribute('class', 'graph-node-circle');
+            const title = document.createElementNS(ns, 'text');
+            title.setAttribute('x', node.x);
+            title.setAttribute('y', node.y + 4);
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('class', 'graph-node-text');
+            title.textContent = node.id;
+            group.appendChild(circle);
+            group.appendChild(title);
+            svg.appendChild(group);
+        });
+
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('x', 20);
+        label.setAttribute('y', 240);
+        label.setAttribute('class', 'graph-legend');
+        label.textContent = `当前模式: ${this.state.mode.toUpperCase()}`;
+        svg.appendChild(label);
 
         const matrix = document.getElementById('protocol-matrix');
         if (!matrix) return;
@@ -365,6 +412,63 @@ ${rawInput}`;
                 </div>
             `;
         }).join('');
+    },
+    renderKnowledgeGaps() {
+        const detailed = document.getElementById('knowledge-gaps-detailed');
+        if (!detailed) return;
+        const gaps = this.state.profile.knowledge_gaps || [];
+        if (gaps.length === 0) {
+            detailed.innerHTML = '<div class="dim">暂无知识锚点</div>';
+            return;
+        }
+        const counts = gaps.reduce((acc, gap) => {
+            acc[gap] = (acc[gap] || 0) + 1;
+            return acc;
+        }, {});
+        detailed.innerHTML = Object.keys(counts).map((gap) => {
+            return `
+                <div class="anchor-item">
+                    <span class="anchor-name">${gap}</span>
+                    <span class="anchor-count">${counts[gap]}</span>
+                </div>
+            `;
+        }).join('');
+    },
+    renderLearningDebtDetails() {
+        const topics = this.state.profile.learning_debt?.by_topic || {};
+        const container = document.getElementById('learning-debt-topics');
+        if (container) {
+            const keys = Object.keys(topics);
+            if (keys.length === 0) {
+                container.innerHTML = '<div class="dim">暂无主题统计</div>';
+            } else {
+                container.innerHTML = keys.map((topic) => {
+                    const item = topics[topic];
+                    return `
+                        <div class="debt-row">
+                            <span>${topic}</span>
+                            <span>${item.hidden_constraint_failures}/${item.total_prompts}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        const sessionList = document.getElementById('learning-debt-sessions');
+        if (sessionList) {
+            const sessions = this.state.profile.learning_debt?.sessions || [];
+            if (sessions.length === 0) {
+                sessionList.innerHTML = '<div class="dim">暂无会话统计</div>';
+            } else {
+                sessionList.innerHTML = sessions.slice(0, 6).map((session) => {
+                    return `
+                        <div class="debt-row">
+                            <span>${session.topic || 'general'}</span>
+                            <span>${session.hidden_constraint_failures}/${session.total_prompts}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
     },
     normalizeProfile(profile) {
         const base = {
