@@ -362,6 +362,21 @@ textarea {
     overflow: auto;
 }
 
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-low);
+}
+
 .research-tile {
     border: 1px solid var(--glass-border);
     border-radius: 12px;
@@ -390,6 +405,29 @@ textarea {
     margin-right: 6px;
 }
 
+.tile-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.tile-detail {
+    display: none;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-low);
+    line-height: 1.5;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 6px;
+}
+
+.research-tile.expanded .tile-detail {
+    display: block;
+}
 .timeline {
     display: flex;
     flex-direction: column;

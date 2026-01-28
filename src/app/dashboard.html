@@ -103,6 +103,24 @@
 
             <div class="bento-card medium glass">
               <h3>研究卡片</h3>
+                <div class="filter-row">
+                  <select id="filter-mode" class="extension-input compact" aria-label="模式筛选">
+                    <option value="all">全部模式</option>
+                  </select>
+                  <select id="filter-topic" class="extension-input compact" aria-label="题目筛选">
+                    <option value="all">全部题目</option>
+                  </select>
+                  <select id="filter-module" class="extension-input compact" aria-label="模块筛选">
+                    <option value="all">全部模块</option>
+                  </select>
+                  <select id="filter-type" class="extension-input compact" aria-label="类型筛选">
+                    <option value="all">全部类型</option>
+                  </select>
+                  <label class="filter-toggle">
+                    <input type="checkbox" id="filter-archived" />
+                    显示归档
+                  </label>
+                </div>
               <div class="research-cards" id="research-cards"></div>
             </div>
 

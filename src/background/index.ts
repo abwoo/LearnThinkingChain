@@ -1,4 +1,5 @@
 import type { MessagePayload, MessageResponse } from '../messaging/Types';
+import type { ResponseRecord } from '../types/Response';
 
 chrome.runtime.onMessageExternal.addListener(
   (request: MessagePayload, _sender, sendResponse: (response: MessageResponse) => void) => {
@@ -74,3 +75,14 @@ chrome.runtime.onMessageExternal.addListener(
     return true;
   }
 );
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local') return;
+  const payload: { ltc_active?: boolean; ltc_mode?: string; ltc_latest_response?: ResponseRecord } = {};
+  if (changes.ltc_active) payload.ltc_active = changes.ltc_active.newValue;
+  if (changes.ltc_mode) payload.ltc_mode = changes.ltc_mode.newValue;
+  if (changes.ltc_latest_response) payload.ltc_latest_response = changes.ltc_latest_response.newValue;
+  if (Object.keys(payload).length === 0) return;
+
+  chrome.runtime.sendMessage({ type: 'STATE_PUSH', payload });
+});
