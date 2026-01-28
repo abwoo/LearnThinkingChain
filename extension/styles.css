@@ -1,0 +1,86 @@
+/* Global Glassmorphism Variables */
+:root {
+    --glass-bg: rgba(17, 25, 40, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.125);
+    --glass-blur: blur(20px) saturate(180%);
+    --accent-blue: #007aff;
+    --accent-glow: rgba(0, 122, 255, 0.5);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+}
+
+.ltc-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    background: var(--glass-bg) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 16px !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    z-index: 1000;
+}
+
+.ltc-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.ltc-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: .4s;
+    border-radius: 34px;
+    border: 1px solid var(--glass-border);
+}
+
+.ltc-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+input:checked+.ltc-slider {
+    background-color: var(--accent-blue);
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
+input:checked+.ltc-slider:before {
+    transform: translateX(20px);
+}
+
+.ltc-mode-select {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 8px !important;
+    color: white !important;
+    padding: 4px 8px !important;
+    outline: none !important;
+    cursor: pointer !important;
+}
+
+/* Gemini Input Glow */
+.ltc-thinking-active {
+    box-shadow: 0 0 30px var(--accent-glow) !important;
+    border: 1px solid var(--accent-blue) !important;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

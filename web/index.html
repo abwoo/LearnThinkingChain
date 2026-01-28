@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>LT Chain Cloud Hub</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="glass-master">
+    <div class="cloud-app">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar-glass">
+            <div class="nav-brand">
+                <div class="logo-orb"></div>
+                <div class="brand-info">
+                    <h1>THINKING CHAIN</h1>
+                    <span class="cloud-badge">CLOUD HUB</span>
+                </div>
+            </div>
+
+            <nav class="hub-nav">
+                <div class="nav-link active" data-view="control">
+                    <span class="nav-icon">⌘</span> 控制中心
+                </div>
+                <div class="nav-link" data-view="workshop">
+                    <span class="nav-icon">⚒</span> 框架工坊
+                </div>
+                <div class="nav-link" data-view="memory">
+                    <span class="nav-icon">☁</span> 原始记忆
+                </div>
+            </nav>
+
+            <div class="nav-status">
+                <div class="dot green"></div>
+                <span>Extensions Linked</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="viewport">
+            <!-- CONTROL CENTER VIEW -->
+            <section id="control-view" class="view active">
+                <div class="view-header">
+                    <h2>控制中心 <span class="dim">Control Center</span></h2>
+                    <button class="btn-glass" id="reset-profile">格式化核心</button>
+                </div>
+
+                <div class="bento-grid">
+                    <div class="bento-card large glass">
+                        <h3>大脑仿真预览</h3>
+                        <div class="preview-stage">
+                            <textarea id="preview-test-input" placeholder="输入测试问题..."></textarea>
+                            <div class="code-wrap">
+                                <pre id="current-protocol-code" class="mono"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bento-card small glass">
+                        <h3>实时思维脉冲</h3>
+                        <div id="live-chain" class="chain-stream"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WORKSHOP VIEW -->
+            <section id="workshop-view" class="view">
+                <div class="view-header">
+                    <h2>框架工坊 <span class="dim">Framework Workshop</span></h2>
+                </div>
+                <div class="workshop-grid glass">
+                    <div class="protocol-editor">
+                        <h3>协议定义 (JSON)</h3>
+                        <textarea id="protocol-json-editor" class="mono"></textarea>
+                        <button class="btn-primary" id="save-protocols">应用新协议</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MEMORY VIEW -->
+            <section id="memory-view" class="view">
+                <div class="view-header">
+                    <h2>原始记忆 <span class="dim">Raw Memory</span></h2>
+                </div>
+                <div class="memory-grid glass">
+                    <div class="memory-input">
+                        <input type="text" id="new-gap-input" placeholder="输入新的知识锚点...">
+                        <button id="add-gap-btn">注入记忆</button>
+                    </div>
+                    <ul id="gaps-list" class="tag-cloud"></ul>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
