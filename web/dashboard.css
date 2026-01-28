@@ -325,6 +325,123 @@ textarea {
     color: #f97316;
 }
 
+.research-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.research-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.research-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-high);
+}
+
+.research-body {
+    font-size: 12px;
+    color: var(--text-low);
+    line-height: 1.4;
+}
+
+.research-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 260px;
+    overflow: auto;
+}
+
+.research-tile {
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.tile-header {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-low);
+    font-size: 11px;
+}
+
+.tile-meta {
+    color: var(--text-low);
+    font-size: 11px;
+}
+
+.tile-body strong {
+    color: var(--text-high);
+    margin-right: 6px;
+}
+
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    gap: 10px;
+    align-items: start;
+}
+
+.timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 6px;
+}
+
+.timeline-content {
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.timeline-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.timeline-meta {
+    font-size: 11px;
+    color: var(--text-low);
+    margin-bottom: 6px;
+}
+
+.timeline-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.timeline-bar-fill {
+    height: 100%;
+    background: var(--accent);
+}
+
 /* Network */
 .network-graph {
     width: 100%;

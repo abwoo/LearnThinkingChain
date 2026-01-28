@@ -59,13 +59,8 @@
 
                 <div class="bento-grid">
                     <div class="bento-card large glass">
-                        <h3>大脑仿真预览</h3>
-                        <div class="preview-stage">
-                            <textarea id="preview-test-input" placeholder="输入测试问题..." aria-label="测试输入"></textarea>
-                            <div class="code-wrap">
-                                <pre id="current-protocol-code" class="mono"></pre>
-                            </div>
-                        </div>
+                        <h3>Q1-Q4 研究面板</h3>
+                        <div class="research-grid" id="q4-research-panel"></div>
                     </div>
 
                     <div class="bento-card small glass">
@@ -80,12 +75,12 @@
                                 <span class="metric-value" id="active-mode">NOVICE</span>
                             </div>
                             <div class="metric-card">
-                                <span class="metric-label">HIDDEN FAILS</span>
-                                <span class="metric-value hidden-constraint-count">0</span>
+                                <span class="metric-label">CONNECTION</span>
+                                <span class="metric-value" id="connection-status">--</span>
                             </div>
                             <div class="metric-card">
-                                <span class="metric-label">LEARNING DEBT</span>
-                                <span class="metric-value learning-debt-count">0</span>
+                                <span class="metric-label">LAST SYNC</span>
+                                <span class="metric-value" id="last-sync">--</span>
                             </div>
                             <div class="metric-card">
                                 <span class="metric-label">TREND</span>
@@ -100,17 +95,13 @@
                     </div>
 
                     <div class="bento-card medium glass">
-                        <h3>框架网络</h3>
-                        <svg id="framework-network" class="network-graph" viewBox="0 0 520 260" role="img" aria-label="框架网络图"></svg>
+                        <h3>研究卡片</h3>
+                        <div class="research-cards" id="research-cards"></div>
                     </div>
 
                     <div class="bento-card medium glass">
-                        <h3>Gemini 回复投射</h3>
-                        <div class="response-panel">
-                            <div class="response-latest" id="response-latest"></div>
-                            <div class="response-history" id="response-history"></div>
-                            <div class="response-analysis" id="response-analysis"></div>
-                        </div>
+                        <h3>会话时间线</h3>
+                        <div class="timeline" id="session-timeline"></div>
                     </div>
 
                     <div class="bento-card medium glass">

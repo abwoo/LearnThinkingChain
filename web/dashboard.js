@@ -32,7 +32,12 @@ const CloudHub = {
             }
         },
         latestResponse: null,
-        responseHistory: []
+        responseHistory: [],
+        connection: {
+            ok: false,
+            last_sync_at: 0,
+            last_error: ''
+        }
     },
 
     async init() {
@@ -67,6 +72,10 @@ const CloudHub = {
     async syncWithExtension() {
         if (!this.state.extensionId) {
             console.warn("[LTC Hub] No Extension ID set. Sync disabled.");
+            this.state.connection.ok = false;
+            this.state.connection.last_error = 'No Extension ID';
+            this.state.connection.last_sync_at = Date.now();
+            this.render();
             return;
         }
 
@@ -75,9 +84,16 @@ const CloudHub = {
             chrome.runtime.sendMessage(this.state.extensionId, { type: "GET_STATE" }, (response) => {
                 if (chrome.runtime.lastError) {
                     console.error("[LTC Hub] Connection failed:", chrome.runtime.lastError.message);
+                    this.state.connection.ok = false;
+                    this.state.connection.last_error = chrome.runtime.lastError.message;
+                    this.state.connection.last_sync_at = Date.now();
+                    this.render();
                     return;
                 }
                 if (response) {
+                    this.state.connection.ok = true;
+                    this.state.connection.last_error = '';
+                    this.state.connection.last_sync_at = Date.now();
                     this.state.active = response.ltc_active || false;
                     this.state.mode = response.ltc_mode || 'novice';
                     this.state.profile = this.normalizeProfile(response.ltc_profile);
@@ -327,6 +343,28 @@ ${rawInput}`;
             statusEl.classList.toggle('status-off', !this.state.active);
         }
 
+        const connectionEl = document.getElementById('connection-status');
+        if (connectionEl) {
+            connectionEl.innerText = this.state.connection.ok ? 'CONNECTED' : 'DISCONNECTED';
+            connectionEl.classList.toggle('status-on', this.state.connection.ok);
+            connectionEl.classList.toggle('status-off', !this.state.connection.ok);
+            connectionEl.title = this.state.connection.last_error || '';
+        }
+
+        const lastSyncEl = document.getElementById('last-sync');
+        if (lastSyncEl) {
+            if (this.state.connection.last_sync_at) {
+                lastSyncEl.innerText = new Date(this.state.connection.last_sync_at).toLocaleTimeString();
+            } else {
+                lastSyncEl.innerText = '--';
+            }
+        }
+
+        const gapInput = document.getElementById('session-gap-input');
+        if (gapInput && this.state.settings?.session_gap_minutes) {
+            gapInput.value = this.state.settings.session_gap_minutes;
+        }
+
         const stylesEl = document.getElementById('thinking-styles');
         if (stylesEl) {
             stylesEl.innerHTML = '';
@@ -359,8 +397,9 @@ ${rawInput}`;
 
         this.renderKnowledgeGaps();
         this.renderLearningDebtDetails();
-        this.renderFrameworkNetwork();
-        this.renderResponsePanel();
+        this.renderResearchPanel();
+        this.renderResearchCards();
+        this.renderTimeline();
         const modeEl = document.getElementById('active-mode');
         if (modeEl) modeEl.innerText = this.state.mode.toUpperCase();
         this.updatePreview(document.getElementById('preview-test-input')?.value || "");
@@ -590,6 +629,92 @@ ${rawInput}`;
                 <div class="analysis-row"><strong>追问</strong><span>${parsed.handover_question || '—'}</span></div>
             `;
         }
+    },
+    renderResearchPanel() {
+        const panel = document.getElementById('q4-research-panel');
+        if (!panel) return;
+        const latest = this.state.latestResponse;
+        const parsed = latest?.structured || this.parseFramework(latest?.text || '');
+        panel.innerHTML = `
+            <div class="research-card">
+                <div class="research-title">Q1 认知盲区</div>
+                <div class="research-body">${parsed.q1 || '—'}</div>
+            </div>
+            <div class="research-card">
+                <div class="research-title">Q2 试错模拟</div>
+                <div class="research-body">${parsed.q2 || '—'}</div>
+            </div>
+            <div class="research-card">
+                <div class="research-title">Q3 底层回溯</div>
+                <div class="research-body">${parsed.q3 || '—'}</div>
+            </div>
+            <div class="research-card">
+                <div class="research-title">Q4 认知交接</div>
+                <div class="research-body">${parsed.q4 || '—'}</div>
+            </div>
+            <div class="research-card">
+                <div class="research-title">误区</div>
+                <div class="research-body">${parsed.first_misstep || '—'}</div>
+            </div>
+            <div class="research-card">
+                <div class="research-title">追问</div>
+                <div class="research-body">${parsed.handover_question || '—'}</div>
+            </div>
+        `;
+    },
+    renderResearchCards() {
+        const container = document.getElementById('research-cards');
+        if (!container) return;
+        const items = this.state.responseHistory || [];
+        if (items.length === 0) {
+            container.innerHTML = '<div class="dim">暂无研究卡片</div>';
+            return;
+        }
+        container.innerHTML = items.slice(0, 8).map((item) => {
+            const structured = item.structured || this.parseFramework(item.text || '');
+            const meta = `${item.topic || 'general'} / ${item.module || 'general'} / ${item.problem_type || 'general'}`;
+            return `
+                <div class="research-tile">
+                    <div class="tile-header">
+                        <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
+                        <span>${item.mode || 'novice'}</span>
+                    </div>
+                    <div class="tile-meta">${meta}</div>
+                    <div class="tile-body">
+                        <div><strong>Q1</strong> ${structured.q1 || '—'}</div>
+                        <div><strong>Q2</strong> ${structured.q2 || '—'}</div>
+                        <div><strong>Q3</strong> ${structured.q3 || '—'}</div>
+                        <div><strong>Q4</strong> ${structured.q4 || '—'}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+    renderTimeline() {
+        const container = document.getElementById('session-timeline');
+        if (!container) return;
+        const sessions = (this.state.profile.learning_debt?.sessions || []).slice(0, 10);
+        if (sessions.length === 0) {
+            container.innerHTML = '<div class="dim">暂无会话记录</div>';
+            return;
+        }
+        container.innerHTML = sessions.map((session) => {
+            const ratio = session.total_prompts ? (session.hidden_constraint_failures / session.total_prompts) : 0;
+            const progress = Math.max(0, 1 - ratio);
+            const percent = Math.round(progress * 100);
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">${session.topic || 'general'} · ${session.module || 'general'} · ${session.problem_type || 'general'}</div>
+                        <div class="timeline-meta">${new Date(session.started_at).toLocaleTimeString()} · 进度 ${percent}%</div>
+                        <div class="timeline-bar">
+                            <div class="timeline-bar-fill" style="width:${percent}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     },
     parseFramework(text) {
         const result = { q1: '', q2: '', q3: '', q4: '', first_misstep: '', handover_question: '' };
