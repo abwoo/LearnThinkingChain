@@ -1,0 +1,36 @@
+{
+  "name": "learnthinkingchain",
+  "version": "1.0.0",
+  "description": "> Cognitive Process Emulator for Gemini",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abwoo/LearnThinkingChain.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/abwoo/LearnThinkingChain/issues"
+  },
+  "homepage": "https://github.com/abwoo/LearnThinkingChain#readme",
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.3.0",
+    "@types/chrome": "^0.1.36",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
