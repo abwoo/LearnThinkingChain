@@ -143,13 +143,13 @@ export class InputInterceptor {
     this.inputEl = el;
     this.logger.info('Input element attached', el);
     this.onReady?.(el);
-    el.addEventListener('keydown', this.handleKeydown, true);
+    el.addEventListener('keydown', this.handleKeydown as EventListener, true);
     el.addEventListener('input', this.handleInput, true);
   }
 
   private detach(): void {
     if (!this.inputEl) return;
-    this.inputEl.removeEventListener('keydown', this.handleKeydown, true);
+    this.inputEl.removeEventListener('keydown', this.handleKeydown as EventListener, true);
     this.inputEl.removeEventListener('input', this.handleInput, true);
     this.inputEl = null;
   }

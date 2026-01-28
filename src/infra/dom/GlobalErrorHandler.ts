@@ -345,8 +345,8 @@ export class GlobalErrorHandler {
    */
   private async storeError(notification: ErrorNotification): Promise<void> {
     try {
-      const errors = await chrome.storage.local.get('ltc_global_errors');
-      const errorList = errors.ltc_global_errors || [];
+      const errors = await chrome.storage.local.get('ltc_global_errors') as { ltc_global_errors?: ErrorNotification[] };
+      const errorList = Array.isArray(errors.ltc_global_errors) ? errors.ltc_global_errors : [];
       
       errorList.push(notification);
       
@@ -367,8 +367,8 @@ export class GlobalErrorHandler {
    */
   async getRecentErrors(limit: number = 10): Promise<ErrorNotification[]> {
     try {
-      const errors = await chrome.storage.local.get('ltc_global_errors');
-      const errorList = errors.ltc_global_errors || [];
+      const errors = await chrome.storage.local.get('ltc_global_errors') as { ltc_global_errors?: ErrorNotification[] };
+      const errorList = Array.isArray(errors.ltc_global_errors) ? errors.ltc_global_errors : [];
       return errorList.slice(-limit);
     } catch {
       return [];

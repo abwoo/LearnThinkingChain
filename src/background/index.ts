@@ -79,9 +79,14 @@ chrome.runtime.onMessageExternal.addListener(
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local') return;
   const payload: { ltc_active?: boolean; ltc_mode?: string; ltc_latest_response?: ResponseRecord } = {};
-  if (changes.ltc_active) payload.ltc_active = changes.ltc_active.newValue;
-  if (changes.ltc_mode) payload.ltc_mode = changes.ltc_mode.newValue;
-  if (changes.ltc_latest_response) payload.ltc_latest_response = changes.ltc_latest_response.newValue;
+  if (changes.ltc_active) payload.ltc_active = Boolean(changes.ltc_active.newValue);
+  if (changes.ltc_mode) {
+    const mode = changes.ltc_mode.newValue;
+    payload.ltc_mode = typeof mode === 'string' ? mode : undefined;
+  }
+  if (changes.ltc_latest_response) {
+    payload.ltc_latest_response = changes.ltc_latest_response.newValue as ResponseRecord | undefined;
+  }
   if (Object.keys(payload).length === 0) return;
 
   chrome.runtime.sendMessage({ type: 'STATE_PUSH', payload });

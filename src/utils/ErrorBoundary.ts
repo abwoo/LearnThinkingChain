@@ -94,8 +94,8 @@ export class ErrorBoundary {
    */
   private async storeError(errorInfo: ErrorInfo): Promise<void> {
     try {
-      const errors = await chrome.storage.local.get('ltc_errors');
-      const errorList = errors.ltc_errors || [];
+      const errors = await chrome.storage.local.get('ltc_errors') as { ltc_errors?: ErrorInfo[] };
+      const errorList = Array.isArray(errors.ltc_errors) ? errors.ltc_errors : [];
       
       errorList.push(errorInfo);
       
@@ -115,8 +115,8 @@ export class ErrorBoundary {
    */
   async getStoredErrors(): Promise<ErrorInfo[]> {
     try {
-      const errors = await chrome.storage.local.get('ltc_errors');
-      return errors.ltc_errors || [];
+      const errors = await chrome.storage.local.get('ltc_errors') as { ltc_errors?: ErrorInfo[] };
+      return Array.isArray(errors.ltc_errors) ? errors.ltc_errors : [];
     } catch {
       return [];
     }

@@ -41,6 +41,8 @@ type ExtensionSettings = {
   };
 };
 
+type ProtocolDefinition = Record<string, string>;
+
 type StructuredResponse = {
   q1: string;
   q2: string;
@@ -105,7 +107,7 @@ const CloudHub = {
     } as CognitiveProfile,
     history: [] as { title: string; desc: string }[],
     theme: 'dark',
-    protocols: {} as Record<string, unknown>,
+    protocols: {} as Record<string, ProtocolDefinition>,
     settings: {
       session_gap_minutes: 30,
       taxonomy: { topics: [], modules: [], types: [] }
@@ -152,7 +154,7 @@ const CloudHub = {
 
     chrome.runtime.sendMessage(this.state.extensionId, { type: 'GET_STATE' }, (response) => {
       if (chrome.runtime.lastError) {
-        this.updateConnection(false, chrome.runtime.lastError.message);
+        this.updateConnection(false, chrome.runtime.lastError.message || 'Unknown error');
         return;
       }
       if (response) {
@@ -335,6 +337,10 @@ const CloudHub = {
     });
   },
 
+  saveProfile(): void {
+    this.sendToExtension({ type: 'SAVE_PROFILE', profile: this.state.profile });
+  },
+
   switchView(viewId: string): void {
     this.state.currentView = viewId;
     document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
@@ -380,7 +386,7 @@ ${rawInput}`;
     };
   },
 
-  getProtocolForMode(): Record<string, string> {
+  getProtocolForMode(): ProtocolDefinition {
     const fallback = this.getFallbackProtocols();
     const custom = this.state.protocols || {};
     return custom[this.state.mode] || fallback[this.state.mode] || fallback.novice;
@@ -463,7 +469,7 @@ ${rawInput}`;
         list.appendChild(li);
       });
       list.querySelectorAll('.remove').forEach((btn) => {
-        btn.onclick = (event) => {
+        (btn as HTMLElement).onclick = (event: MouseEvent) => {
           const target = event.currentTarget as HTMLElement;
           const index = Number(target.dataset.index || 0);
           this.deleteTag(index);
@@ -505,6 +511,14 @@ ${rawInput}`;
       `
       )
       .join('');
+  },
+
+  deleteTag(index: number): void {
+    if (!Number.isFinite(index)) return;
+    this.state.profile.missed_points.splice(index, 1);
+    this.state.profile.knowledge_gaps = this.state.profile.missed_points.slice();
+    this.saveProfile();
+    this.renderKnowledgeGaps();
   },
 
   renderLearningDebtDetails(): void {

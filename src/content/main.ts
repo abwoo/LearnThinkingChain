@@ -18,7 +18,7 @@ import type { ProtocolMap } from '../types/Protocols';
 let isActive = false;
 let currentMode = 'novice';
 let profile: UserCognitiveProfile | null = null;
-let protocols: ProtocolMap = {};
+let protocols: ProtocolMap = getDefaultProtocols();
 let sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Components
@@ -39,12 +39,12 @@ async function initialize() {
 
     // Load protocols
     const protocolsData = await chrome.storage.local.get('ltc_protocols');
-    protocols = protocolsData.ltc_protocols || getDefaultProtocols();
+    protocols = (protocolsData.ltc_protocols as ProtocolMap) || getDefaultProtocols();
 
     // Load active state
     const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode']);
-    isActive = state.ltc_active ?? false;
-    currentMode = state.ltc_mode ?? 'novice';
+    isActive = Boolean(state.ltc_active);
+    currentMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : 'novice';
 
     // Initialize circuit breaker
     circuitBreaker = new CircuitBreaker({
@@ -94,7 +94,7 @@ async function initialize() {
       if (areaName !== 'local') return;
 
       if (changes.ltc_active) {
-        isActive = changes.ltc_active.newValue ?? false;
+        isActive = Boolean(changes.ltc_active.newValue);
         if (isActive) {
           interceptor?.start();
         } else {
@@ -104,7 +104,7 @@ async function initialize() {
       }
 
       if (changes.ltc_mode) {
-        currentMode = changes.ltc_mode.newValue ?? 'novice';
+        currentMode = typeof changes.ltc_mode.newValue === 'string' ? changes.ltc_mode.newValue : 'novice';
         updateFloatingHub();
       }
     });
@@ -151,14 +151,14 @@ async function handleInterception(
     }
 
     // Update profile with session log
-    await CognitiveProfileService.addSessionLog(profile, {
-      logicBridgeUsed: processed.logicBridges.join(', '),
+    await CognitiveProfileService.addSessionLog(profile!, {
+      logicBridgeUsed: processed.logicBridges?.join(', ') ?? '',
       promptText: value,
       responseLength: 0,
       skillsDetected: []
     });
 
-    await CognitiveProfileService.save(profile);
+    await CognitiveProfileService.save(profile!);
 
     return processed.wrappedPrompt;
   }) ?? null;

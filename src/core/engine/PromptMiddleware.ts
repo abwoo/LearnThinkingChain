@@ -17,6 +17,7 @@ export interface PromptContext {
 
 export interface ProcessedPrompt {
   wrappedPrompt: string;
+  logicBridges: string[];
   pathBranching: {
     pitfallPath: string;
     firstPrinciplesPath: string;
@@ -60,6 +61,7 @@ export class PromptMiddleware {
 
     return {
       wrappedPrompt,
+      logicBridges: bridgeResult.logicBridges,
       pathBranching,
       zpdContext: bridgeResult.zpdAdjustments
     };

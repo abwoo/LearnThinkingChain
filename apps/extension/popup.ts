@@ -1,3 +1,9 @@
+type ProfileSnapshot = {
+  knowledge_gaps?: string[];
+  missed_points?: string[];
+  thinking_styles?: string[];
+};
+
 type PopupState = {
   active: boolean;
   mode: string;
@@ -33,22 +39,30 @@ function render(): void {
 function load(): void {
   chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_profile'], (result) => {
     state.active = Boolean(result.ltc_active);
-    state.mode = result.ltc_mode || 'novice';
-    const profile = result.ltc_profile || {};
-    state.knowledgeGaps = profile.knowledge_gaps || profile.missed_points || [];
-    state.thinkingStyles = profile.thinking_styles || [];
+    state.mode = typeof result.ltc_mode === 'string' ? result.ltc_mode : 'novice';
+    const profile = (result.ltc_profile ?? {}) as ProfileSnapshot;
+    state.knowledgeGaps = Array.isArray(profile.knowledge_gaps)
+      ? profile.knowledge_gaps
+      : Array.isArray(profile.missed_points)
+        ? profile.missed_points
+        : [];
+    state.thinkingStyles = Array.isArray(profile.thinking_styles) ? profile.thinking_styles : [];
     render();
   });
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  if (changes.ltc_active) state.active = changes.ltc_active.newValue;
-  if (changes.ltc_mode) state.mode = changes.ltc_mode.newValue || 'novice';
+  if (changes.ltc_active) state.active = Boolean(changes.ltc_active.newValue);
+  if (changes.ltc_mode) state.mode = typeof changes.ltc_mode.newValue === 'string' ? changes.ltc_mode.newValue : 'novice';
   if (changes.ltc_profile) {
-    const profile = changes.ltc_profile.newValue || {};
-    state.knowledgeGaps = profile.knowledge_gaps || profile.missed_points || [];
-    state.thinkingStyles = profile.thinking_styles || [];
+    const profile = (changes.ltc_profile.newValue ?? {}) as ProfileSnapshot;
+    state.knowledgeGaps = Array.isArray(profile.knowledge_gaps)
+      ? profile.knowledge_gaps
+      : Array.isArray(profile.missed_points)
+        ? profile.missed_points
+        : [];
+    state.thinkingStyles = Array.isArray(profile.thinking_styles) ? profile.thinking_styles : [];
   }
   render();
 });

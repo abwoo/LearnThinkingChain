@@ -38,8 +38,8 @@ export class RequestInterceptor {
   private readonly MAX_FAILURES = 3;
 
   // Event handlers (bound methods)
-  private handleKeydownCapture: (e: KeyboardEvent) => void;
-  private handleSubmitCapture: (e: MouseEvent | KeyboardEvent) => void;
+  private handleKeydownCapture: (e: Event) => void;
+  private handleSubmitCapture: (e: Event) => void;
   private handleInputCapture: (e: Event) => void;
 
   constructor(options: InterceptorOptions) {
@@ -89,7 +89,8 @@ export class RequestInterceptor {
   /**
    * Capture phase handler for keydown (Enter key)
    */
-  private onKeydownCapture(event: KeyboardEvent): void {
+  private onKeydownCapture(event: Event): void {
+    if (!(event instanceof KeyboardEvent)) return;
     // Only intercept Enter key (without Shift)
     if (event.key !== 'Enter' || event.shiftKey) return;
     if (event.isComposing) return;
@@ -112,7 +113,7 @@ export class RequestInterceptor {
   /**
    * Capture phase handler for submit actions
    */
-  private onSubmitCapture(event: MouseEvent | KeyboardEvent): void {
+  private onSubmitCapture(event: Event): void {
     const target = event.target as HTMLElement;
     
     // Check if it's a submit button

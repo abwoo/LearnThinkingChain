@@ -99,8 +99,8 @@ class ConsoleLogger implements Logger {
 
   async getLogs(): Promise<LogEntry[]> {
     try {
-      const data = await chrome.storage.local.get('ltc_logs');
-      return data.ltc_logs || [];
+      const data = await chrome.storage.local.get('ltc_logs') as { ltc_logs?: LogEntry[] };
+      return Array.isArray(data.ltc_logs) ? data.ltc_logs : [];
     } catch {
       return [];
     }
