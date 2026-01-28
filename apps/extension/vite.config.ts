@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  root: __dirname,
   plugins: [react(), crx({ manifest })],
   resolve: {
     alias: {
@@ -23,8 +24,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: path.resolve(__dirname, 'popup.html'),
-        content: path.resolve(__dirname, '../../src/content/main.ts'),
-        background: path.resolve(__dirname, '../../src/background/index.ts')
+        content: path.resolve(__dirname, 'content/main.ts'),
+        background: path.resolve(__dirname, 'background/index.ts')
       }
     }
   }
