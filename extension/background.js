@@ -55,7 +55,15 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
                 thinking_trend: "",
                 meta_cognitive_level: 1,
                 hidden_constraint_failures: 0,
-                learning_debt: { hidden_constraint: 0 },
+                thinking_trend_counts: {},
+                learning_debt: {
+                    hidden_constraint: 0,
+                    by_topic: {},
+                    by_module: {},
+                    by_type: {},
+                    sessions: []
+                },
+                last_session_id: "",
                 last_updated: Date.now()
             };
             chrome.storage.local.set({ 'ltc_profile': emptyProfile }, () => {

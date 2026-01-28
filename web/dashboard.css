@@ -570,6 +570,20 @@ textarea {
     margin-top: 24px;
 }
 
+.tag-help {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.tag-example {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-low);
+    white-space: pre-wrap;
+}
+
 .matrix-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -24,7 +24,12 @@ const CloudHub = {
         theme: 'dark',
         protocols: {},
         settings: {
-            session_gap_minutes: 30
+            session_gap_minutes: 30,
+            taxonomy: {
+                topics: [],
+                modules: [],
+                types: []
+            }
         },
         latestResponse: null,
         responseHistory: []
@@ -82,6 +87,7 @@ const CloudHub = {
                     this.state.latestResponse = response.ltc_latest_response || null;
                     this.state.responseHistory = response.ltc_response_history || [];
                     this.refreshProtocolEditor();
+                    this.refreshTaxonomyEditor();
                     this.render();
                 }
             });
@@ -167,6 +173,25 @@ const CloudHub = {
             this.state.settings.session_gap_minutes = safeValue;
             this.sendToExtension({ type: "SAVE_SETTINGS", settings: this.state.settings });
             input.value = safeValue;
+        });
+
+        document.getElementById('taxonomy-json-editor')?.addEventListener('input', (e) => {
+            e.target.dataset.dirty = 'true';
+        });
+
+        document.getElementById('save-taxonomy')?.addEventListener('click', () => {
+            const editor = document.getElementById('taxonomy-json-editor');
+            const status = document.getElementById('taxonomy-save-status');
+            if (!editor) return;
+            try {
+                const parsed = JSON.parse(editor.value || '{}');
+                this.state.settings.taxonomy = parsed;
+                this.sendToExtension({ type: "SAVE_SETTINGS", settings: this.state.settings });
+                editor.dataset.dirty = 'false';
+                if (status) status.innerText = '已同步到扩展';
+            } catch (err) {
+                if (status) status.innerText = 'JSON 格式错误';
+            }
         });
     },
 
@@ -357,6 +382,16 @@ ${rawInput}`;
         const status = document.getElementById('protocol-save-status');
         if (status) status.innerText = '已同步';
     },
+    refreshTaxonomyEditor() {
+        const editor = document.getElementById('taxonomy-json-editor');
+        if (!editor) return;
+        if (editor.dataset.dirty === 'true') return;
+        const taxonomy = this.state.settings.taxonomy || {};
+        editor.value = JSON.stringify(taxonomy, null, 2);
+        editor.dataset.dirty = 'false';
+        const status = document.getElementById('taxonomy-save-status');
+        if (status) status.innerText = '已同步';
+    },
     renderFrameworkNetwork() {
         const container = document.getElementById('framework-network');
         if (!container) return;
@@ -497,7 +532,7 @@ ${rawInput}`;
         }).join('');
     },
     renderDebtCurve() {
-        const svg = document.getElementById('learning-debt-curve');
+        const svg = document.getElementById('learning-progress-curve');
         if (!svg) return;
         const sessions = (this.state.profile.learning_debt?.sessions || []).slice(0, 10).reverse();
         if (sessions.length === 0) {
@@ -511,8 +546,9 @@ ${rawInput}`;
         svg.innerHTML = '';
         const points = sessions.map((session, index) => {
             const ratio = session.total_prompts ? (session.hidden_constraint_failures / session.total_prompts) : 0;
+            const progress = Math.max(0, 1 - ratio);
             const x = 20 + (index * (width - 40) / Math.max(1, sessions.length - 1));
-            const y = height - 20 - ratio * (height - 40);
+            const y = height - 20 - progress * (height - 40);
             return `${x},${y}`;
         }).join(' ');
         const polyline = document.createElementNS(ns, 'polyline');
@@ -544,17 +580,19 @@ ${rawInput}`;
             }
         }
         if (analysisBox) {
-            const parsed = this.parseFramework(latest?.text || '');
+            const parsed = latest?.structured || this.parseFramework(latest?.text || '');
             analysisBox.innerHTML = `
                 <div class="analysis-row"><strong>Q1</strong><span>${parsed.q1 || '—'}</span></div>
                 <div class="analysis-row"><strong>Q2</strong><span>${parsed.q2 || '—'}</span></div>
                 <div class="analysis-row"><strong>Q3</strong><span>${parsed.q3 || '—'}</span></div>
                 <div class="analysis-row"><strong>Q4</strong><span>${parsed.q4 || '—'}</span></div>
+                <div class="analysis-row"><strong>误区</strong><span>${parsed.first_misstep || '—'}</span></div>
+                <div class="analysis-row"><strong>追问</strong><span>${parsed.handover_question || '—'}</span></div>
             `;
         }
     },
     parseFramework(text) {
-        const result = { q1: '', q2: '', q3: '', q4: '' };
+        const result = { q1: '', q2: '', q3: '', q4: '', first_misstep: '', handover_question: '' };
         if (!text) return result;
         const sections = text.split(/\n+/);
         sections.forEach((line) => {
@@ -562,7 +600,10 @@ ${rawInput}`;
             if (/Q2/i.test(line)) result.q2 = line.replace(/Q2[:：]?\s*/i, '').trim();
             if (/Q3/i.test(line)) result.q3 = line.replace(/Q3[:：]?\s*/i, '').trim();
             if (/Q4/i.test(line)) result.q4 = line.replace(/Q4[:：]?\s*/i, '').trim();
+            if (line.startsWith('我最初以为')) result.first_misstep = line.trim();
         });
+        const lastQuestion = sections.slice().reverse().find((line) => line.endsWith('？') || line.endsWith('?'));
+        result.handover_question = lastQuestion || '';
         return result;
     },
     normalizeProfile(profile) {
@@ -583,8 +624,17 @@ ${rawInput}`;
         return merged;
     },
     normalizeSettings(settings) {
-        const base = { session_gap_minutes: 30 };
-        return { ...base, ...(settings || {}) };
+        const base = {
+            session_gap_minutes: 30,
+            taxonomy: {
+                topics: [],
+                modules: [],
+                types: []
+            }
+        };
+        const merged = { ...base, ...(settings || {}) };
+        merged.taxonomy = { ...base.taxonomy, ...(merged.taxonomy || {}) };
+        return merged;
     },
     applyTheme(theme) {
         this.state.theme = theme;

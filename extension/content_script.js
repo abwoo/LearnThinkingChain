@@ -36,7 +36,12 @@ let sessionState = {
     last_event_at: 0
 };
 let settings = {
-    session_gap_minutes: 30
+    session_gap_minutes: 30,
+    taxonomy: {
+        topics: [],
+        modules: [],
+        types: []
+    }
 };
 let responseState = {
     last_text: "",
@@ -125,9 +130,16 @@ function normalizeSession(session) {
 
 function normalizeSettings(incoming) {
     const base = {
-        session_gap_minutes: 30
+        session_gap_minutes: 30,
+        taxonomy: {
+            topics: [],
+            modules: [],
+            types: []
+        }
     };
-    return { ...base, ...(incoming || {}) };
+    const merged = { ...base, ...(incoming || {}) };
+    merged.taxonomy = { ...base.taxonomy, ...(merged.taxonomy || {}) };
+    return merged;
 }
 
 function normalizeProtocols(protocols) {
@@ -575,36 +587,51 @@ function updateLearningDebt(rawInput) {
 }
 
 function detectTopic(rawInput) {
-    const topicSignals = [
+    const defaultSignals = [
         { key: 'mechanics', label: '力学', regex: /受力|力学|牛顿|摩擦|速度|加速度|动量|功|能量/i },
         { key: 'circuits', label: '电路', regex: /电路|电阻|电容|电感|电流|电压|欧姆/i },
         { key: 'math', label: '数学', regex: /函数|极限|导数|积分|矩阵|向量|概率|统计/i },
         { key: 'cs', label: '编程', regex: /算法|复杂度|递归|指针|并发|线程|数据库/i }
     ];
-    const hit = topicSignals.find((signal) => signal.regex.test(rawInput));
-    return hit ? hit.label : 'general';
+    return matchTaxonomy(rawInput, settings.taxonomy.topics, defaultSignals);
 }
 
 function detectKnowledgeModule(rawInput) {
-    const moduleSignals = [
+    const defaultSignals = [
         { key: 'physics', label: '物理', regex: /力学|电路|光学|热学|电磁|粒子/i },
         { key: 'math', label: '数学', regex: /函数|极限|导数|积分|向量|矩阵|概率/i },
         { key: 'cs', label: '计算机', regex: /算法|代码|复杂度|编译|数据库|网络/i },
         { key: 'chem', label: '化学', regex: /摩尔|化学反应|氧化|还原|溶液|平衡/i }
     ];
-    const hit = moduleSignals.find((signal) => signal.regex.test(rawInput));
-    return hit ? hit.label : 'general';
+    return matchTaxonomy(rawInput, settings.taxonomy.modules, defaultSignals);
 }
 
 function detectProblemType(rawInput) {
-    const typeSignals = [
+    const defaultSignals = [
         { key: 'concept', label: '概念理解', regex: /是什么|如何理解|概念|定义|原理/i },
         { key: 'derivation', label: '推导证明', regex: /证明|推导|为什么成立|严密|推理/i },
         { key: 'calculation', label: '计算求解', regex: /求解|计算|求值|结果是多少|数值/i },
         { key: 'debug', label: '纠错', regex: /哪里错|不对|修正|纠错|不成立/i }
     ];
-    const hit = typeSignals.find((signal) => signal.regex.test(rawInput));
-    return hit ? hit.label : 'general';
+    return matchTaxonomy(rawInput, settings.taxonomy.types, defaultSignals);
+}
+
+function matchTaxonomy(rawInput, customList, defaultSignals) {
+    const candidates = Array.isArray(customList) ? customList : [];
+    for (const item of candidates) {
+        if (!item || !item.label || !Array.isArray(item.keywords)) continue;
+        const hit = item.keywords.some((keyword) => {
+            if (!keyword) return false;
+            try {
+                return new RegExp(keyword, 'i').test(rawInput);
+            } catch (e) {
+                return rawInput.includes(keyword);
+            }
+        });
+        if (hit) return item.label;
+    }
+    const fallback = defaultSignals.find((signal) => signal.regex.test(rawInput));
+    return fallback ? fallback.label : 'general';
 }
 
 function ensureSession(topic, module, problemType, now) {
@@ -707,8 +734,10 @@ function captureLatestResponse() {
     if (responseText === responseState.last_text && now - responseState.last_at < 2000) return;
     responseState.last_text = responseText;
     responseState.last_at = now;
+    const structured = parseStructuredResponse(responseText);
     const latest = {
         text: responseText,
+        structured,
         mode: currentMode,
         timestamp: now,
         topic: sessionState.topic,
@@ -746,6 +775,21 @@ function findLatestResponseText() {
         .filter((text) => text.length > 0);
     if (texts.length === 0) return "";
     return texts[texts.length - 1];
+}
+
+function parseStructuredResponse(text) {
+    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+    const extract = (label) => {
+        const match = lines.find((line) => line.toLowerCase().startsWith(label.toLowerCase()));
+        return match ? match.replace(new RegExp(`^${label}[:：]?\\s*`, 'i'), '').trim() : '';
+    };
+    const q1 = extract('Q1');
+    const q2 = extract('Q2');
+    const q3 = extract('Q3');
+    const q4 = extract('Q4');
+    const firstMisstep = lines.find((line) => line.startsWith('我最初以为')) || '';
+    const lastQuestion = lines.slice().reverse().find((line) => line.endsWith('？') || line.endsWith('?')) || '';
+    return { q1, q2, q3, q4, first_misstep: firstMisstep, handover_question: lastQuestion };
 }
 
 function generateCognitivePrompt(rawInput) {
