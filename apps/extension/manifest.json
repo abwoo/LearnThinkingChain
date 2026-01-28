@@ -11,7 +11,7 @@
     "https://gemini.google.com/*"
   ],
   "background": {
-    "service_worker": "background/index.ts"
+    "service_worker": "background/index.js"
   },
   "action": {
     "default_popup": "popup.html",
@@ -27,7 +27,7 @@
         "https://gemini.google.com/*"
       ],
       "js": [
-        "content/main.ts"
+        "content/main.js"
       ],
       "run_at": "document_start",
       "all_frames": false
