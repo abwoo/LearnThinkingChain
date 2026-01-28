@@ -27,13 +27,5 @@ export default defineConfig({
         background: path.resolve(__dirname, '../../src/background/index.ts')
       }
     }
-  },
-  css: {
-    postcss: {
-      plugins: [
-        require('tailwindcss'),
-        require('autoprefixer')
-      ]
-    }
   }
 });

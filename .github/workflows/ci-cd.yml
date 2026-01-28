@@ -48,6 +48,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Copy icon files
+        run: |
+          if [ -d "extension/icons" ]; then
+            mkdir -p apps/extension/icons
+            cp -r extension/icons/* apps/extension/icons/
+          fi
+
       - name: Build extension
         run: npm run build
         continue-on-error: false
@@ -60,6 +67,9 @@ jobs:
           fi
           echo "Build output found:"
           ls -la dist/extension/ | head -20
+          echo "Checking for required files:"
+          [ -f "dist/extension/manifest.json" ] && echo "✓ manifest.json exists" || echo "✗ manifest.json missing"
+          [ -f "dist/extension/popup.html" ] && echo "✓ popup.html exists" || echo "✗ popup.html missing"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

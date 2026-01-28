@@ -29,6 +29,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
@@ -44,6 +45,7 @@ jobs:
           fi
           echo "Build output found:"
           ls -la dist/web/ | head -20
+          [ -f "dist/web/index.html" ] && echo "✓ index.html exists" || echo "✗ index.html missing"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
