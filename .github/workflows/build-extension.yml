@@ -1,0 +1,37 @@
+# Build Chrome Extension
+name: Build Extension
+
+on:
+  push:
+    branches: ["main", "dev"]
+    paths:
+      - "apps/extension/**"
+      - "packages/shared/**"
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:extension
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: dist/extension
+          retention-days: 7

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../../packages/shared/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.tsx"],
+  "references": [
+    { "path": "../../packages/shared" }
+  ]
+}

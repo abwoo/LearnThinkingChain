@@ -121,7 +121,6 @@ const CloudHub = {
       showArchived: false
     } as FilterState
   },
-  port: null as chrome.runtime.Port | null,
 
   async init(): Promise<void> {
     this.state.extensionId = localStorage.getItem('ltc_extension_id') || '';
@@ -139,14 +138,6 @@ const CloudHub = {
       });
     }
 
-    const archived = localStorage.getItem('ltc_archives');
-    if (archived) {
-      try {
-        this.state.responseHistory = JSON.parse(archived) as ResponseRecord[];
-      } catch {
-        this.state.responseHistory = [];
-      }
-    }
     await this.syncWithExtension();
     this.bindEvents();
     this.render();
@@ -183,10 +174,8 @@ const CloudHub = {
   },
 
   bindPushChannel(): void {
-    if (!chrome.runtime?.connect) return;
-    if (this.port) return;
-    this.port = chrome.runtime.connect(this.state.extensionId, { name: 'ltc-dashboard' });
-    this.port.onMessage.addListener((message: ExternalMessage) => {
+    if (!chrome.runtime?.onMessage) return;
+    chrome.runtime.onMessage.addListener((message: ExternalMessage) => {
       if (message.type !== 'STATE_PUSH') return;
       const payload = message.payload;
       if (!payload) return;
@@ -198,9 +187,6 @@ const CloudHub = {
       }
       this.updateConnection(true, '');
       this.render();
-    });
-    this.port.onDisconnect.addListener(() => {
-      this.port = null;
     });
   },
 
@@ -767,7 +753,6 @@ ${rawInput}`;
     this.state.responseHistory = this.state.responseHistory.map((item) =>
       item.timestamp === timestamp ? { ...item, archived: !item.archived } : item
     );
-    localStorage.setItem('ltc_archives', JSON.stringify(this.state.responseHistory));
     this.renderResearchCards();
   },
 

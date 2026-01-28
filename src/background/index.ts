@@ -1,8 +1,6 @@
 import type { MessagePayload, MessageResponse } from '../messaging/Types';
 import type { ResponseRecord } from '../types/Response';
 
-const externalPorts = new Set<chrome.runtime.Port>();
-
 chrome.runtime.onMessageExternal.addListener(
   (request: MessagePayload, _sender, sendResponse: (response: MessageResponse) => void) => {
     try {
@@ -86,18 +84,5 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (changes.ltc_latest_response) payload.ltc_latest_response = changes.ltc_latest_response.newValue;
   if (Object.keys(payload).length === 0) return;
 
-  externalPorts.forEach((port) => {
-    try {
-      port.postMessage({ type: 'STATE_PUSH', payload });
-    } catch (error) {
-      externalPorts.delete(port);
-    }
-  });
-});
-
-chrome.runtime.onConnectExternal.addListener((port) => {
-  externalPorts.add(port);
-  port.onDisconnect.addListener(() => {
-    externalPorts.delete(port);
-  });
+  chrome.runtime.sendMessage({ type: 'STATE_PUSH', payload });
 });

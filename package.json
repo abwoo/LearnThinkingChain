@@ -1,29 +1,22 @@
 {
   "name": "learnthinkingchain",
-  "version": "1.0.0",
-  "description": "> Cognitive Process Emulator for Gemini",
-  "main": "index.js",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "build:dashboard": "vite build --config vite.dashboard.config.ts"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/abwoo/LearnThinkingChain.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "version": "3.0.0",
+  "description": "Cognitive Process Emulator for Gemini - Production Internal Edition",
   "type": "module",
-  "bugs": {
-    "url": "https://github.com/abwoo/LearnThinkingChain/issues"
+  "scripts": {
+    "dev": "vite --config apps/extension/vite.config.ts",
+    "build": "vite build --config apps/extension/vite.config.ts",
+    "build:release": "npm run build && npm run package",
+    "package": "node scripts/package-release.js",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest"
   },
-  "homepage": "https://github.com/abwoo/LearnThinkingChain#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",
@@ -32,6 +25,15 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
-  }
+    "vite": "^7.3.1",
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "archiver": "^7.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abwoo/LearnThinkingChain.git"
+  },
+  "license": "ISC"
 }
