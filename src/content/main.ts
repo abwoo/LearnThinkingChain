@@ -19,7 +19,7 @@ let isActive = false;
 let currentMode = 'novice';
 let profile: UserCognitiveProfile | null = null;
 let protocols: ProtocolMap = getDefaultProtocols();
-let sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Components
 let interceptor: RequestInterceptor | null = null;
@@ -116,7 +116,7 @@ async function initialize() {
 // Handle interception
 async function handleInterception(
   value: string,
-  element: HTMLElement
+  _element: HTMLElement
 ): Promise<string | null> {
   if (!isActive || !profile) {
     return null; // Allow original

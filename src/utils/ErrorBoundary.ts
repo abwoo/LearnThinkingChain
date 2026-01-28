@@ -9,7 +9,7 @@ import { defaultLogger, Logger } from './logger';
 export interface ErrorInfo {
   message: string;
   stack?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -29,7 +29,7 @@ export class ErrorBoundary {
    */
   async wrap<T>(
     fn: () => Promise<T>,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): Promise<T | null> {
     try {
       return await fn();
@@ -43,7 +43,7 @@ export class ErrorBoundary {
    */
   wrapSync<T>(
     fn: () => T,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): T | null {
     try {
       return fn();
@@ -57,7 +57,7 @@ export class ErrorBoundary {
    */
   private handleError(
     error: unknown,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): null {
     const now = Date.now();
     

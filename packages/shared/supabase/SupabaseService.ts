@@ -16,7 +16,7 @@ export interface ThinkingEvent {
   detected_skills: string[]; // Skill IDs
   skill_exp_gains: Record<string, number>; // { skill_id: exp_gain }
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SupabaseConfig {
@@ -118,8 +118,8 @@ export class SupabaseService {
           table: 'user_thinking_events',
           filter: `extension_id=eq.${extensionId}`
         },
-        (payload) => {
-          const event = payload.new as ThinkingEvent;
+        (payload: { new: ThinkingEvent }) => {
+          const event = payload.new;
           callback(event);
         }
       )

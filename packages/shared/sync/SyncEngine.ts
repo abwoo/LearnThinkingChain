@@ -61,7 +61,7 @@ export class SyncEngine {
   async captureAndPush(
     promptText: string,
     aiResponse: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<string[]> {
     if (!this.config) {
       console.error('SyncEngine not initialized');

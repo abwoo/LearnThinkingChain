@@ -42,7 +42,7 @@ export class FloatingHub {
   /**
    * Update props
    */
-  update(props: Partial<FloatingHubProps>): void {
+  update(_props: Partial<FloatingHubProps>): void {
     // Re-render with new props
     // In a real implementation, you'd use React state management
   }

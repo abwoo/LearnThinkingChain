@@ -11,7 +11,7 @@ import { ShadowHost } from '../../ui/shadow/ShadowHost';
 export interface ErrorContext {
   type: 'dom_selection' | 'storage_quota' | 'network' | 'unknown';
   message: string;
-  details?: any;
+  details?: unknown;
   recoverable: boolean;
 }
 
@@ -120,7 +120,7 @@ export class GlobalErrorHandler {
    */
   handleNetworkError(
     url: string,
-    error: any
+    error: unknown
   ): void {
     this.handleError({
       type: 'network',

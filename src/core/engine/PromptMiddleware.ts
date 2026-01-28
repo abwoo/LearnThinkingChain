@@ -4,8 +4,8 @@
  * Implements recursive search pattern and path branching logic
  */
 
-import { CognitiveBridge, BridgeContext, BridgeResult } from './CognitiveBridge';
-import { CognitiveProfileService, UserCognitiveProfile } from './CognitiveProfile';
+import { CognitiveBridge, BridgeResult } from './CognitiveBridge';
+import { UserCognitiveProfile } from './CognitiveProfile';
 import type { CognitiveProtocol } from '../../types/Protocols';
 
 export interface PromptContext {

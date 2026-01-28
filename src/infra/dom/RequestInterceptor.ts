@@ -222,14 +222,7 @@ export class RequestInterceptor {
     document.removeEventListener('submit', this.handleSubmitCapture, true);
 
     // Re-dispatch the event
-    const newEvent = new (event.constructor as any)(
-      event.type,
-      {
-        ...(event as any),
-        bubbles: true,
-        cancelable: true
-      }
-    );
+    const newEvent = this.createSyntheticEvent(event);
     
     (event.target as HTMLElement).dispatchEvent(newEvent);
 
@@ -245,23 +238,42 @@ export class RequestInterceptor {
    * Replay event after processing
    */
   private replayEvent(originalEvent: Event, element: InputElement): void {
-    // Create a new synthetic event
-    const eventType = originalEvent.type;
-    const eventInit: any = {
+    const syntheticEvent = this.createSyntheticEvent(originalEvent);
+    element.dispatchEvent(syntheticEvent);
+  }
+
+  private createSyntheticEvent(originalEvent: Event): Event {
+    const baseInit: EventInit = {
       bubbles: true,
       cancelable: true
     };
 
     if (originalEvent instanceof KeyboardEvent) {
-      eventInit.key = (originalEvent as KeyboardEvent).key;
-      eventInit.code = (originalEvent as KeyboardEvent).code;
-      eventInit.shiftKey = (originalEvent as KeyboardEvent).shiftKey;
-      eventInit.ctrlKey = (originalEvent as KeyboardEvent).ctrlKey;
-      eventInit.altKey = (originalEvent as KeyboardEvent).altKey;
+      const init: KeyboardEventInit = {
+        ...baseInit,
+        key: originalEvent.key,
+        code: originalEvent.code,
+        shiftKey: originalEvent.shiftKey,
+        ctrlKey: originalEvent.ctrlKey,
+        altKey: originalEvent.altKey,
+        metaKey: originalEvent.metaKey,
+        repeat: originalEvent.repeat
+      };
+      return new KeyboardEvent(originalEvent.type, init);
     }
 
-    const syntheticEvent = new (originalEvent.constructor as any)(eventType, eventInit);
-    element.dispatchEvent(syntheticEvent);
+    if (originalEvent instanceof MouseEvent) {
+      const init: MouseEventInit = {
+        ...baseInit,
+        clientX: originalEvent.clientX,
+        clientY: originalEvent.clientY,
+        button: originalEvent.button,
+        buttons: originalEvent.buttons
+      };
+      return new MouseEvent(originalEvent.type, init);
+    }
+
+    return new Event(originalEvent.type, baseInit);
   }
 
   /**

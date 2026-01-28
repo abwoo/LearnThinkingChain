@@ -34,7 +34,7 @@ export class CognitiveProfileService {
     try {
       const data = await chrome.storage.local.get(this.STORAGE_KEY);
       if (data[this.STORAGE_KEY]) {
-        return this.deserialize(data[this.STORAGE_KEY]);
+        return this.deserialize(data[this.STORAGE_KEY] as Record<string, unknown>);
       }
     } catch (error) {
       console.error('Failed to load cognitive profile:', error);
@@ -140,7 +140,7 @@ export class CognitiveProfileService {
     };
   }
 
-  private static serialize(profile: UserCognitiveProfile): any {
+  private static serialize(profile: UserCognitiveProfile): Record<string, unknown> {
     return {
       weakPoints: Array.from(profile.weakPoints.entries()),
       preferredHeuristics: profile.preferredHeuristics,
@@ -152,15 +152,20 @@ export class CognitiveProfileService {
     };
   }
 
-  private static deserialize(data: any): UserCognitiveProfile {
+  private static deserialize(data: Record<string, unknown>): UserCognitiveProfile {
+    const weakPoints = Array.isArray(data.weakPoints) ? data.weakPoints : [];
+    const knowledgeDebt = Array.isArray(data.knowledgeDebt) ? data.knowledgeDebt : [];
+    const sessionLogs = Array.isArray(data.sessionLogs) ? data.sessionLogs : [];
     return {
-      weakPoints: new Map(data.weakPoints || []),
-      preferredHeuristics: data.preferredHeuristics || 'analytical',
-      sessionLogs: data.sessionLogs || [],
-      knowledgeDebt: new Map(data.knowledgeDebt || []),
-      lastUpdated: data.lastUpdated || Date.now(),
-      totalSessions: data.totalSessions || 0,
-      averageResponseTime: data.averageResponseTime || 0
+      weakPoints: new Map(weakPoints as Array<[string, number]>),
+      preferredHeuristics: typeof data.preferredHeuristics === 'string'
+        ? (data.preferredHeuristics as PreferredHeuristic)
+        : 'analytical',
+      sessionLogs: sessionLogs as SessionLog[],
+      knowledgeDebt: new Map(knowledgeDebt as Array<[string, number]>),
+      lastUpdated: typeof data.lastUpdated === 'number' ? data.lastUpdated : Date.now(),
+      totalSessions: typeof data.totalSessions === 'number' ? data.totalSessions : 0,
+      averageResponseTime: typeof data.averageResponseTime === 'number' ? data.averageResponseTime : 0
     };
   }
 }

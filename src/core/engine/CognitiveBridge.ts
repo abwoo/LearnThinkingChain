@@ -28,7 +28,7 @@ export class CognitiveBridge {
    * Analyze user's knowledge debt and enhance prompt
    */
   static async bridge(context: BridgeContext): Promise<BridgeResult> {
-    const { profile, currentPrompt, detectedTopics, sessionId } = context;
+    const { profile, currentPrompt, detectedTopics } = context;
 
     // Identify knowledge debt to address
     const highDebtConcepts = CognitiveProfileService.getHighDebtConcepts(profile, 3);

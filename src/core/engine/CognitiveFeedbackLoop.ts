@@ -56,7 +56,7 @@ export class CognitiveFeedbackLoop {
    */
   async analyzeResponse(
     profile: UserCognitiveProfile,
-    promptText: string
+    _promptText: string
   ): Promise<FeedbackResult | null> {
     try {
       // Find the latest response element
@@ -74,7 +74,7 @@ export class CognitiveFeedbackLoop {
       }
 
       // Analyze response
-      const analysis = this.analyzeResponseContent(responseText, promptText);
+      const analysis = this.analyzeResponseContent(responseText);
 
       // Generate profile updates
       const profileUpdates = this.generateProfileUpdates(profile, analysis, responseText);
@@ -164,12 +164,7 @@ export class CognitiveFeedbackLoop {
   /**
    * Analyze response content for cognitive patterns
    */
-  private analyzeResponseContent(
-    responseText: string,
-    promptText: string
-  ): ResponseAnalysis {
-    const lowerText = responseText.toLowerCase();
-    const lowerPrompt = promptText.toLowerCase();
+  private analyzeResponseContent(responseText: string): ResponseAnalysis {
 
     // Parse structured response
     const structured = parseStructuredResponse(responseText);

@@ -34,7 +34,6 @@ export const SkillTree: React.FC<SkillTreeProps> = ({ skills, onSkillClick }) =>
       berserker: { centerX: 300, centerY: 50 }
     };
 
-    const hexRadius = 30;
     const hexSpacing = 80;
 
     const newNodes: HexagonNode[] = [];
@@ -42,7 +41,6 @@ export const SkillTree: React.FC<SkillTreeProps> = ({ skills, onSkillClick }) =>
     for (const category of Object.keys(SKILL_CATEGORIES) as SkillCategory[]) {
       const categorySkills = SKILL_DB.filter(s => s.category === category);
       const center = categoryPositions[category];
-      const categoryInfo = SKILL_CATEGORIES[category];
 
       // 为每个技能创建六边形节点
       categorySkills.forEach((skill, index) => {

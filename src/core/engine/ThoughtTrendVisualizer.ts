@@ -5,7 +5,7 @@
  * (Knowledge Gaps vs. Critical Thinking Gains)
  */
 
-import { CognitiveProfileService, UserCognitiveProfile, SessionLog } from './CognitiveProfile';
+import { UserCognitiveProfile, SessionLog } from './CognitiveProfile';
 import { defaultLogger, Logger } from '../../utils/logger';
 
 export interface TrendDataPoint {

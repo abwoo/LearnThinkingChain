@@ -14,15 +14,15 @@ export enum LogLevel {
 export interface LogEntry {
   level: LogLevel;
   message: string;
-  context?: any;
+  context?: unknown;
   timestamp: number;
 }
 
 export interface Logger {
-  debug(message: string, context?: any): void;
-  info(message: string, context?: any): void;
-  warn(message: string, context?: any): void;
-  error(message: string, context?: any): void;
+  debug(message: string, context?: unknown): void;
+  info(message: string, context?: unknown): void;
+  warn(message: string, context?: unknown): void;
+  error(message: string, context?: unknown): void;
 }
 
 class ConsoleLogger implements Logger {
@@ -36,23 +36,23 @@ class ConsoleLogger implements Logger {
     this.enableStorage = enableStorage;
   }
 
-  debug(message: string, context?: any): void {
+  debug(message: string, context?: unknown): void {
     this.log(LogLevel.DEBUG, message, context);
   }
 
-  info(message: string, context?: any): void {
+  info(message: string, context?: unknown): void {
     this.log(LogLevel.INFO, message, context);
   }
 
-  warn(message: string, context?: any): void {
+  warn(message: string, context?: unknown): void {
     this.log(LogLevel.WARN, message, context);
   }
 
-  error(message: string, context?: any): void {
+  error(message: string, context?: unknown): void {
     this.log(LogLevel.ERROR, message, context);
   }
 
-  private log(level: LogLevel, message: string, context?: any): void {
+  private log(level: LogLevel, message: string, context?: unknown): void {
     if (level < this.minLevel) return;
 
     const entry: LogEntry = {

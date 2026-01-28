@@ -18,7 +18,7 @@ interface ThinkingOrbProps {
 export const ThinkingOrb: React.FC<ThinkingOrbProps> = ({
   activeCategory,
   skills,
-  onHover
+  onHover: _onHover
 }) => {
   const [showRadar, setShowRadar] = useState(false);
   const [sessionStats, setSessionStats] = useState<Record<SkillCategory, number>>({
