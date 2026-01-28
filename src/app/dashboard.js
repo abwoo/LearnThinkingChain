@@ -431,83 +431,7 @@ ${rawInput}`;
         const status = document.getElementById('taxonomy-save-status');
         if (status) status.innerText = '已同步';
     },
-    renderFrameworkNetwork() {
-        const container = document.getElementById('framework-network');
-        if (!container) return;
-        const mode = this.getProtocolForMode();
-        const nodes = [
-            { id: 'Q1', label: '认知盲区', desc: mode.q1_blind_spot || '识别噪声与误导线索', x: 80, y: 60 },
-            { id: 'Q2', label: '试错模拟', desc: mode.q2_entropy || '沿直觉走到撞墙', x: 260, y: 40 },
-            { id: 'Q3', label: '底层回溯', desc: mode.q3_backtrack || '回到基础概念', x: 260, y: 170 },
-            { id: 'Q4', label: '认知交接', desc: mode.q4_handover || '开放式引导', x: 440, y: 120 }
-        ];
-        const svg = container;
-        svg.innerHTML = '';
-        const ns = 'http://www.w3.org/2000/svg';
-        const linkPairs = [
-            [0, 1],
-            [1, 2],
-            [2, 3]
-        ];
-        linkPairs.forEach(([a, b]) => {
-            const line = document.createElementNS(ns, 'line');
-            line.setAttribute('x1', nodes[a].x);
-            line.setAttribute('y1', nodes[a].y);
-            line.setAttribute('x2', nodes[b].x);
-            line.setAttribute('y2', nodes[b].y);
-            line.setAttribute('class', 'graph-line');
-            svg.appendChild(line);
-        });
-        nodes.forEach((node) => {
-            const group = document.createElementNS(ns, 'g');
-            group.setAttribute('class', 'graph-node');
-            const circle = document.createElementNS(ns, 'circle');
-            circle.setAttribute('cx', node.x);
-            circle.setAttribute('cy', node.y);
-            circle.setAttribute('r', 28);
-            circle.setAttribute('class', 'graph-node-circle');
-            const title = document.createElementNS(ns, 'text');
-            title.setAttribute('x', node.x);
-            title.setAttribute('y', node.y + 4);
-            title.setAttribute('text-anchor', 'middle');
-            title.setAttribute('class', 'graph-node-text');
-            title.textContent = node.id;
-            group.appendChild(circle);
-            group.appendChild(title);
-            svg.appendChild(group);
-        });
 
-        const label = document.createElementNS(ns, 'text');
-        label.setAttribute('x', 20);
-        label.setAttribute('y', 240);
-        label.setAttribute('class', 'graph-legend');
-        label.textContent = `当前模式: ${this.state.mode.toUpperCase()}`;
-        svg.appendChild(label);
-
-        const matrix = document.getElementById('protocol-matrix');
-        if (!matrix) return;
-        const protocols = this.state.protocols || {};
-        const keys = Object.keys(protocols);
-        if (keys.length === 0) {
-            matrix.innerHTML = '<div class="dim">尚未配置协议</div>';
-            return;
-        }
-        matrix.innerHTML = keys.map((key) => {
-            const p = protocols[key];
-            return `
-                <div class="matrix-card">
-                    <div class="matrix-title">${p.name || key}</div>
-                    <div class="matrix-sub">${p.identity || ''}</div>
-                    <ul>
-                        <li>${p.q1_blind_spot || ''}</li>
-                        <li>${p.q2_entropy || ''}</li>
-                        <li>${p.q3_backtrack || ''}</li>
-                        <li>${p.q4_handover || ''}</li>
-                    </ul>
-                </div>
-            `;
-        }).join('');
-    },
     renderKnowledgeGaps() {
         const detailed = document.getElementById('knowledge-gaps-detailed');
         if (!detailed) return;
@@ -594,41 +518,6 @@ ${rawInput}`;
         polyline.setAttribute('points', points);
         polyline.setAttribute('class', 'curve-line');
         svg.appendChild(polyline);
-    },
-    renderResponsePanel() {
-        const latestBox = document.getElementById('response-latest');
-        const historyBox = document.getElementById('response-history');
-        const analysisBox = document.getElementById('response-analysis');
-        const latest = this.state.latestResponse;
-        if (latestBox) {
-            latestBox.innerText = latest ? latest.text : '暂无 Gemini 回复';
-        }
-        if (historyBox) {
-            const items = this.state.responseHistory || [];
-            if (items.length === 0) {
-                historyBox.innerHTML = '<div class="dim">暂无历史</div>';
-            } else {
-                historyBox.innerHTML = items.slice(0, 6).map((item) => {
-                    return `
-                        <div class="response-item">
-                            <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
-                            <span>${(item.text || '').slice(0, 40)}...</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-        }
-        if (analysisBox) {
-            const parsed = latest?.structured || this.parseFramework(latest?.text || '');
-            analysisBox.innerHTML = `
-                <div class="analysis-row"><strong>Q1</strong><span>${parsed.q1 || '—'}</span></div>
-                <div class="analysis-row"><strong>Q2</strong><span>${parsed.q2 || '—'}</span></div>
-                <div class="analysis-row"><strong>Q3</strong><span>${parsed.q3 || '—'}</span></div>
-                <div class="analysis-row"><strong>Q4</strong><span>${parsed.q4 || '—'}</span></div>
-                <div class="analysis-row"><strong>误区</strong><span>${parsed.first_misstep || '—'}</span></div>
-                <div class="analysis-row"><strong>追问</strong><span>${parsed.handover_question || '—'}</span></div>
-            `;
-        }
     },
     renderResearchPanel() {
         const panel = document.getElementById('q4-research-panel');
