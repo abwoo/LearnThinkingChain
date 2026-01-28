@@ -1,8 +1,8 @@
 /**
- * LearnThinkingChain Content Script - v2.0 (Multi-Mode)
+ * LearnThinkingChain Content Script - v3.0 (Floating Glass Hub)
  */
 
-console.log("[LTC] Content script v2.0 loaded");
+console.log("[LTC] Content script v3.0 loaded");
 
 let isActive = false;
 let currentMode = "novice";
@@ -15,27 +15,27 @@ let userProfile = {
 
 const MODES = {
     novice: {
-        name: "初学者探索 (Novice)",
+        name: "Novice Mode",
         identity: "Peer Learner",
-        protocol: "1. 描述初步的困惑。2. 尝试一个错误的直觉并解释为何失败。3. 展示‘顿悟’时刻。4. 在最终答案前停下。",
+        protocol: "1. 描述初步的困惑。\n2. 尝试一个错误的直觉。\n3. 展示‘顿悟’时刻。\n4. 在最终答案前停下。",
         constraint: "Stop before the final result. Ask a guiding question."
     },
     socratic: {
-        name: "苏格拉底启发 (Socratic)",
+        name: "Socratic Mode",
         identity: "Socratic Mentor",
-        protocol: "1. 不要直接回答。2. 通过一系列反问引导用户。3. 确认识别用户的知识盲点。4. 鼓励逻辑自洽。",
+        protocol: "1. 不要直接回答。\n2. 通过反问引导用户。\n3. 识别知识盲点。\n4. 鼓励逻辑自洽。",
         constraint: "NEVER provide the full answer. Only lead the user to find it themselves."
     },
     first_principles: {
-        name: "第一性原理 (First Principles)",
+        name: "First Principles",
         identity: "First Principles Analyst",
-        protocol: "1. 拆解问题到最基础的物理/逻辑事实。2. 质疑所有常规假设。3. 从零开始重建推导流程。4. 解释每一层逻辑的基石。",
+        protocol: "1. 拆解到物理/逻辑事实。\n2. 质疑所有常规假设。\n3. 从零重建推导。\n4. 解释基石。",
         constraint: "Provide an atomic breakdown. Stop before the synthesis of the final answer."
     },
     analogy: {
-        name: "类比专家 (Analogical)",
+        name: "Analogy Mode",
         identity: "Analogical Master",
-        protocol: "1. 找一个看似无关但逻辑相似的日常生活场景。2. 用这个类比解释核心机制。3. 映射类比到当前问题。4. 提出一个类比迁移问题。",
+        protocol: "1. 找日常生活逻辑场景。\n2. 解释核心机制。\n3. 映射到当前问题。\n4. 提出迁移问题。",
         constraint: "Focus on conceptual mapping. Stop before the calculation/final result."
     }
 };
@@ -44,13 +44,198 @@ const MODES = {
 chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode'], (result) => {
     isActive = result.ltc_active || false;
     currentMode = result.ltc_mode || "novice";
-    if (result.ltc_profile) {
-        userProfile = result.ltc_profile;
-    }
-    console.log("[LTC] Initialized:", { isActive, currentMode, userProfile });
-    initializeUI();
+    if (result.ltc_profile) userProfile = result.ltc_profile;
+
+    // Inject the Floating Hub immediately
+    injectFloatingHub();
+
+    console.log("[LTC] Initialized:", { isActive, currentMode });
 });
 
+/**
+ * 1. Inject Floating Glass Hub
+ */
+function injectFloatingHub() {
+    if (document.getElementById('ltc-hub')) return;
+
+    const hub = document.createElement('div');
+    hub.id = 'ltc-hub';
+    hub.className = 'ltc-floating-hub';
+
+    let modeOptions = "";
+    for (const key in MODES) {
+        modeOptions += `<option value="${key}" ${currentMode === key ? 'selected' : ''}>${MODES[key].name}</option>`;
+    }
+
+    hub.innerHTML = `
+        <div class="ltc-hub-header" id="ltc-header">
+            <div class="ltc-brand">
+                <span>⚡</span> THINKING CHAIN
+            </div>
+            <div class="ltc-drag-indicator"></div>
+        </div>
+
+        <div class="ltc-controls-row">
+            <div class="ltc-toggle-group">
+                <label class="ltc-switch">
+                    <input type="checkbox" id="ltc-toggle-checkbox" ${isActive ? 'checked' : ''}>
+                    <span class="ltc-slider"></span>
+                </label>
+                <select id="ltc-mode-select" class="ltc-mode-select" style="width: auto; flex: 1; margin-left: 10px;">
+                    ${modeOptions}
+                </select>
+            </div>
+        </div>
+
+        <button class="ltc-expand-btn" id="ltc-expand-btn">
+            ▼ History & Framework
+        </button>
+
+        <div class="ltc-info-panel" id="ltc-info-panel">
+            <div class="ltc-panel-content">
+                <div class="ltc-section-title">Active Framework</div>
+                <div class="ltc-framework-box" id="ltc-framework-text">
+                    Loading protocol...
+                </div>
+                
+                <div class="ltc-section-title">Recent Prompts</div>
+                <div class="ltc-history-list" id="ltc-history-list">
+                    <!-- History items injected here -->
+                    <div style="padding:10px; color:rgba(255,255,255,0.3); font-size:11px;">No recent history</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(hub);
+
+    // Bind Events
+    setupDraggable(hub, hub.querySelector('#ltc-header'));
+    bindControls(hub);
+    updateFrameworkPreview();
+    loadHistory();
+}
+
+
+/**
+ * 2. Event Binding & Logic
+ */
+function bindControls(hub) {
+    // Active Toggle
+    const checkbox = hub.querySelector('#ltc-toggle-checkbox');
+    checkbox.addEventListener('change', (e) => {
+        isActive = e.target.checked;
+        chrome.storage.local.set({ 'ltc_active': isActive });
+
+        // Visual feedback on Gemini Input Area
+        const inputArea = findInputArea();
+        if (inputArea) inputArea.classList.toggle('ltc-thinking-active', isActive);
+    });
+
+    // Mode Select
+    const modeSelect = hub.querySelector('#ltc-mode-select');
+    modeSelect.addEventListener('change', (e) => {
+        currentMode = e.target.value;
+        chrome.storage.local.set({ 'ltc_mode': currentMode });
+        updateFrameworkPreview();
+    });
+
+    // Expand Panel
+    const expandBtn = hub.querySelector('#ltc-expand-btn');
+    expandBtn.addEventListener('click', () => {
+        hub.classList.toggle('expanded');
+        expandBtn.innerText = hub.classList.contains('expanded')
+            ? '▲ Hide Panel'
+            : '▼ History & Framework';
+    });
+}
+
+function updateFrameworkPreview() {
+    const el = document.getElementById('ltc-framework-text');
+    if (el && MODES[currentMode]) {
+        el.innerText = MODES[currentMode].protocol;
+    }
+}
+
+function loadHistory() {
+    chrome.storage.local.get(['ltc_prompt_history'], (result) => {
+        const history = result.ltc_prompt_history || [];
+        const listEl = document.getElementById('ltc-history-list');
+        if (listEl && history.length > 0) {
+            listEl.innerHTML = '';
+            history.forEach(text => {
+                const item = document.createElement('div');
+                item.className = 'ltc-history-item';
+                item.innerText = text;
+                item.title = text; // Tooltip full text
+                item.onclick = () => {
+                    // Click to copy back to input?
+                    const inputArea = findInputArea();
+                    if (inputArea) {
+                        if (inputArea.tagName === 'TEXTAREA') inputArea.value = text;
+                        else inputArea.innerText = text;
+                    }
+                };
+                listEl.appendChild(item);
+            });
+        }
+    });
+}
+
+function addToHistory(text) {
+    if (!text) return;
+    chrome.storage.local.get(['ltc_prompt_history'], (result) => {
+        let history = result.ltc_prompt_history || [];
+        // Add new to top, keep max 5
+        history.unshift(text);
+        if (history.length > 5) history = history.slice(0, 5);
+
+        chrome.storage.local.set({ 'ltc_prompt_history': history });
+        loadHistory(); // Refresh UI
+    });
+}
+
+/**
+ * 3. Draggable Logic
+ */
+function setupDraggable(element, handle) {
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    handle.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = element.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        // Remove 'right' positioning if set, so we can control via 'left'
+        element.style.right = 'auto';
+        element.style.left = initialLeft + 'px';
+        element.style.top = initialTop + 'px';
+
+        document.body.style.userSelect = 'none'; // Prevent text selection
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        element.style.left = (initialLeft + dx) + 'px';
+        element.style.top = (initialTop + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        document.body.style.userSelect = '';
+    });
+}
+
+
+/**
+ * 4. Gemini Input Utilities (Same as before)
+ */
 function findInputArea() {
     const selectors = [
         'div[contenteditable="true"][role="textbox"]',
@@ -66,75 +251,16 @@ function findInputArea() {
     return null;
 }
 
-function initializeUI() {
-    const observer = new MutationObserver(() => {
-        const inputArea = findInputArea();
-        if (inputArea && !document.querySelector('.ltc-toggle-container')) {
-            injectUI(inputArea);
-        }
-        if (inputArea) {
-            inputArea.classList.toggle('ltc-thinking-active', isActive);
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    setInterval(() => {
-        const inputArea = findInputArea();
-        if (inputArea && !document.querySelector('.ltc-toggle-container')) {
-            injectUI(inputArea);
-        }
-    }, 2000);
-}
-
-function injectUI(inputArea) {
-    const container = inputArea.closest('.input-area-container') ||
-        inputArea.closest('.prompt-input-container') ||
-        inputArea.parentElement;
-
-    if (!container || document.querySelector('.ltc-toggle-container')) return;
-
-    const uiDiv = document.createElement('div');
-    uiDiv.className = `ltc-toggle-container ${isActive ? 'active' : ''}`;
-
-    let modeOptions = "";
-    for (const key in MODES) {
-        modeOptions += `<option value="${key}" ${currentMode === key ? 'selected' : ''}>${MODES[key].name}</option>`;
+// Continuous check to bind glow effect if lost (e.g. page navigation)
+setInterval(() => {
+    const inputArea = findInputArea();
+    if (inputArea && isActive && !inputArea.classList.contains('ltc-thinking-active')) {
+        inputArea.classList.add('ltc-thinking-active');
     }
-
-    uiDiv.innerHTML = `
-        <label class="ltc-switch">
-            <input type="checkbox" id="ltc-toggle-checkbox" ${isActive ? 'checked' : ''}>
-            <span class="ltc-slider"></span>
-        </label>
-        <span class="ltc-status-text">ThinkingChain</span>
-        <select id="ltc-mode-select" class="ltc-mode-select">
-            ${modeOptions}
-        </select>
-    `;
-
-    if (container.parentElement) {
-        container.parentElement.insertBefore(uiDiv, container);
-    }
-
-    // Listeners
-    const checkbox = uiDiv.querySelector('#ltc-toggle-checkbox');
-    checkbox.addEventListener('change', (e) => {
-        isActive = e.target.checked;
-        uiDiv.classList.toggle('active', isActive);
-        chrome.storage.local.set({ 'ltc_active': isActive });
-        inputArea.classList.toggle('ltc-thinking-active', isActive);
-    });
-
-    const modeSelect = uiDiv.querySelector('#ltc-mode-select');
-    modeSelect.addEventListener('change', (e) => {
-        currentMode = e.target.value;
-        chrome.storage.local.set({ 'ltc_mode': currentMode });
-        console.log("[LTC] Mode changed to:", currentMode);
-    });
-}
+}, 1000);
 
 /**
- * Intercept & Wrap
+ * 5. Intercept & Wrap (Modified to save history)
  */
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && isActive) {
@@ -158,6 +284,9 @@ document.addEventListener('click', (e) => {
 function handleSubmission(inputArea) {
     const rawInput = inputArea.innerText.trim() || (inputArea.value ? inputArea.value.trim() : "");
     if (!rawInput || rawInput.startsWith('[IDENTITY: COGNITIVE PROCESS EMULATOR]')) return;
+
+    // Save to History before wrapping
+    addToHistory(rawInput);
 
     const wrappedPrompt = wrapPrompt(rawInput);
 
