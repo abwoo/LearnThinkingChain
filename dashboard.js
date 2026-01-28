@@ -34,7 +34,9 @@ function updateUI() {
             'first_principles': '第一性原理模式',
             'analogy': '类比专家映射模式'
         };
-        modeEl.innerText = modeNames[data.ltc_mode] || '未知模式';
+        if (modeEl) {
+            modeEl.innerText = modeNames[data.ltc_mode] || '未知模式';
+        }
 
         // 2. Update Protocol Code Box
         const codeBox = document.getElementById('current-protocol-code');
@@ -44,7 +46,9 @@ function updateUI() {
             'first_principles': '[IDENTITY: Analytical First-Principles]\n1. Deconstruct to physics/logic\n2. Question assumptions\n3. Rebuild from scratch\n4. Base facts explanation',
             'analogy': '[IDENTITY: Analogy Artist]\n1. Map to daily life\n2. Explain mechanic via metaphor\n3. Bridge back to problem\n4. Transfer question'
         };
-        codeBox.innerText = protocols[data.ltc_mode] || 'Standard Protocol active.';
+        if (codeBox) {
+            codeBox.innerText = protocols[data.ltc_mode] || 'Standard Protocol active.';
+        }
 
         // 3. Update Thinking Chain (Live Data)
         const chainContainer = document.getElementById('live-chain');
