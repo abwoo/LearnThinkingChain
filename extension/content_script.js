@@ -1,8 +1,8 @@
 /**
- * LearnThinkingChain Content Script - v3.0 (Floating Glass Hub)
+ * LearnThinkingChain Content Script - v4.0 (Cognitive Meta-Architecture)
  */
 
-console.log("[LTC] Content script v3.0 loaded");
+console.log("[LTC] Content script v4.0 loaded");
 
 let isActive = false;
 let currentMode = "novice";
@@ -12,31 +12,42 @@ let userProfile = {
     trial_error_history: [],
     last_updated: Date.now()
 };
+let lastWrappedInput = "";
+let lastWrappedAt = 0;
 
+// Q1-Q4 COGNITIVE FRAMEWORK DEFINITIONS
 const MODES = {
     novice: {
-        name: "Novice Mode",
+        name: "Novice Backtracker",
         identity: "Peer Learner",
-        protocol: "1. 描述初步的困惑。\n2. 尝试一个错误的直觉。\n3. 展示‘顿悟’时刻。\n4. 在最终答案前停下。",
-        constraint: "Stop before the final result. Ask a guiding question."
+        q1_blind_spot: "Ignore technical jargon. Focus on intuitive confusion.",
+        q2_entropy: "Make a common 'naive physics' mistake first.",
+        q3_backtrack: "Realize the contradiction. Return to basic definitions.",
+        q4_handover: "Ask a guiding question about the missing variable."
     },
     socratic: {
-        name: "Socratic Mode",
+        name: "Socratic Guide",
         identity: "Socratic Mentor",
-        protocol: "1. 不要直接回答。\n2. 通过反问引导用户。\n3. 识别知识盲点。\n4. 鼓励逻辑自洽。",
-        constraint: "NEVER provide the full answer. Only lead the user to find it themselves."
+        q1_blind_spot: "Identify the user's likely misconception.",
+        q2_entropy: "Ask a question that leads them down their wrong path.",
+        q3_backtrack: " expose the flaw in that logic using a counter-example.",
+        q4_handover: "Prompt them to reconstruct the argument."
     },
     first_principles: {
         name: "First Principles",
         identity: "First Principles Analyst",
-        protocol: "1. 拆解到物理/逻辑事实。\n2. 质疑所有常规假设。\n3. 从零重建推导。\n4. 解释基石。",
-        constraint: "Provide an atomic breakdown. Stop before the synthesis of the final answer."
+        q1_blind_spot: "Strip away all analogies. Look at raw constraints.",
+        q2_entropy: "Attempt a surface-level solution and fail.",
+        q3_backtrack: "Break down to atomic truths (Physics/Logic axioms).",
+        q4_handover: "Synthesize the axiomatic proof path."
     },
     analogy: {
-        name: "Analogy Mode",
+        name: "Analogy Weaver",
         identity: "Analogical Master",
-        protocol: "1. 找日常生活逻辑场景。\n2. 解释核心机制。\n3. 映射到当前问题。\n4. 提出迁移问题。",
-        constraint: "Focus on conceptual mapping. Stop before the calculation/final result."
+        q1_blind_spot: "Ignore the math. Look at the system behavior.",
+        q2_entropy: "Proposed a weak analogy that breaks down.",
+        q3_backtrack: "Find a stronger, isomorphic mechanical analogy.",
+        q4_handover: "Map the analogy back to the specific problem."
     }
 };
 
@@ -46,14 +57,12 @@ chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode'], (result) => 
     currentMode = result.ltc_mode || "novice";
     if (result.ltc_profile) userProfile = result.ltc_profile;
 
-    // Inject the Floating Hub immediately
     injectFloatingHub();
-
     console.log("[LTC] Initialized:", { isActive, currentMode });
 });
 
 /**
- * 1. Inject Floating Glass Hub
+ * 1. Inject Floating Glass Hub (UI Polish: Better Headers, Clear Button)
  */
 function injectFloatingHub() {
     if (document.getElementById('ltc-hub')) return;
@@ -70,7 +79,7 @@ function injectFloatingHub() {
     hub.innerHTML = `
         <div class="ltc-hub-header" id="ltc-header">
             <div class="ltc-brand">
-                <span>⚡</span> THINKING CHAIN
+                <span style="color:var(--accent-blue); font-size:14px;">⚡</span> THINKING CHAIN
             </div>
             <div class="ltc-drag-indicator"></div>
         </div>
@@ -81,27 +90,31 @@ function injectFloatingHub() {
                     <input type="checkbox" id="ltc-toggle-checkbox" ${isActive ? 'checked' : ''}>
                     <span class="ltc-slider"></span>
                 </label>
-                <select id="ltc-mode-select" class="ltc-mode-select" style="width: auto; flex: 1; margin-left: 10px;">
+                <select id="ltc-mode-select" class="ltc-mode-select" style="margin-left: 12px; flex: 1;">
                     ${modeOptions}
                 </select>
             </div>
         </div>
 
         <button class="ltc-expand-btn" id="ltc-expand-btn">
-            ▼ History & Framework
+            ▼ Open Cognitive Panel
         </button>
 
         <div class="ltc-info-panel" id="ltc-info-panel">
             <div class="ltc-panel-content">
-                <div class="ltc-section-title">Active Framework</div>
+                <div class="ltc-panel-row-header">
+                    <div class="ltc-section-title">ACTIVE PROTOCOL (Q1-Q4)</div>
+                </div>
                 <div class="ltc-framework-box" id="ltc-framework-text">
-                    Loading protocol...
+                    Loading...
                 </div>
                 
-                <div class="ltc-section-title">Recent Prompts</div>
+                <div class="ltc-panel-row-header">
+                    <div class="ltc-section-title">SESSION HISTORY</div>
+                    <button id="ltc-clear-history" class="ltc-mini-btn" title="Clear History">🗑️</button>
+                </div>
                 <div class="ltc-history-list" id="ltc-history-list">
-                    <!-- History items injected here -->
-                    <div style="padding:10px; color:rgba(255,255,255,0.3); font-size:11px;">No recent history</div>
+                    <!-- Items -->
                 </div>
             </div>
         </div>
@@ -109,51 +122,59 @@ function injectFloatingHub() {
 
     document.body.appendChild(hub);
 
-    // Bind Events
     setupDraggable(hub, hub.querySelector('#ltc-header'));
     bindControls(hub);
     updateFrameworkPreview();
     loadHistory();
 }
 
-
 /**
- * 2. Event Binding & Logic
+ * 2. Event Binding
  */
 function bindControls(hub) {
-    // Active Toggle
-    const checkbox = hub.querySelector('#ltc-toggle-checkbox');
-    checkbox.addEventListener('change', (e) => {
+    // Toggle
+    hub.querySelector('#ltc-toggle-checkbox').addEventListener('change', (e) => {
         isActive = e.target.checked;
         chrome.storage.local.set({ 'ltc_active': isActive });
-
-        // Visual feedback on Gemini Input Area
-        const inputArea = findInputArea();
-        if (inputArea) inputArea.classList.toggle('ltc-thinking-active', isActive);
+        toggleInputGlow();
     });
 
-    // Mode Select
-    const modeSelect = hub.querySelector('#ltc-mode-select');
-    modeSelect.addEventListener('change', (e) => {
+    // Mode
+    hub.querySelector('#ltc-mode-select').addEventListener('change', (e) => {
         currentMode = e.target.value;
         chrome.storage.local.set({ 'ltc_mode': currentMode });
         updateFrameworkPreview();
     });
 
-    // Expand Panel
+    // Expand
     const expandBtn = hub.querySelector('#ltc-expand-btn');
     expandBtn.addEventListener('click', () => {
         hub.classList.toggle('expanded');
         expandBtn.innerText = hub.classList.contains('expanded')
-            ? '▲ Hide Panel'
-            : '▼ History & Framework';
+            ? '▲ Close Panel'
+            : '▼ Open Cognitive Panel';
+    });
+
+    // Clear History
+    hub.querySelector('#ltc-clear-history').addEventListener('click', () => {
+        if (confirm('Clear local session history?')) {
+            chrome.storage.local.set({ 'ltc_prompt_history': [] });
+            loadHistory();
+        }
     });
 }
 
 function updateFrameworkPreview() {
     const el = document.getElementById('ltc-framework-text');
     if (el && MODES[currentMode]) {
-        el.innerText = MODES[currentMode].protocol;
+        const m = MODES[currentMode];
+        // Display the Q1-Q4 logic visually
+        el.innerHTML = `
+            <span style="color:#ff6b6b">Q1: ${m.q1_blind_spot}</span><br>
+            <span style="color:#feca57">Q2: ${m.q2_entropy}</span><br>
+            <span style="color:#48dbfb">Q3: ${m.q3_backtrack}</span><br>
+            <span style="color:#1dd1a1">Q4: ${m.q4_handover}</span>
+        `;
     }
 }
 
@@ -161,15 +182,19 @@ function loadHistory() {
     chrome.storage.local.get(['ltc_prompt_history'], (result) => {
         const history = result.ltc_prompt_history || [];
         const listEl = document.getElementById('ltc-history-list');
-        if (listEl && history.length > 0) {
+        if (listEl) {
             listEl.innerHTML = '';
-            history.forEach(text => {
+            if (history.length === 0) {
+                listEl.innerHTML = '<div style="padding:10px; color:rgba(255,255,255,0.3); font-size:11px; text-align:center;">No active thoughts</div>';
+                return;
+            }
+            history.forEach((text, index) => {
                 const item = document.createElement('div');
                 item.className = 'ltc-history-item';
-                item.innerText = text;
-                item.title = text; // Tooltip full text
+                // Add a small index number
+                item.innerHTML = `<span style="opacity:0.5; margin-right:8px;">${index + 1}.</span> ${text}`;
+                item.title = text;
                 item.onclick = () => {
-                    // Click to copy back to input?
                     const inputArea = findInputArea();
                     if (inputArea) {
                         if (inputArea.tagName === 'TEXTAREA') inputArea.value = text;
@@ -186,12 +211,13 @@ function addToHistory(text) {
     if (!text) return;
     chrome.storage.local.get(['ltc_prompt_history'], (result) => {
         let history = result.ltc_prompt_history || [];
-        // Add new to top, keep max 5
-        history.unshift(text);
-        if (history.length > 5) history = history.slice(0, 5);
-
-        chrome.storage.local.set({ 'ltc_prompt_history': history });
-        loadHistory(); // Refresh UI
+        // Unique check to avoid duplicate spam
+        if (history[0] !== text) {
+            history.unshift(text);
+            if (history.length > 8) history = history.slice(0, 8); // Keep last 8
+            chrome.storage.local.set({ 'ltc_prompt_history': history });
+            loadHistory();
+        }
     });
 }
 
@@ -209,13 +235,10 @@ function setupDraggable(element, handle) {
         const rect = element.getBoundingClientRect();
         initialLeft = rect.left;
         initialTop = rect.top;
-
-        // Remove 'right' positioning if set, so we can control via 'left'
-        element.style.right = 'auto';
+        element.style.right = 'auto'; // Release right anchor
         element.style.left = initialLeft + 'px';
         element.style.top = initialTop + 'px';
-
-        document.body.style.userSelect = 'none'; // Prevent text selection
+        document.body.style.userSelect = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -232,16 +255,18 @@ function setupDraggable(element, handle) {
     });
 }
 
-
 /**
- * 4. Gemini Input Utilities (Same as before)
+ * 4. Input Utilities
  */
 function findInputArea() {
     const selectors = [
+        'div[contenteditable="true"][data-lexical-editor="true"]',
         'div[contenteditable="true"][role="textbox"]',
         'div[contenteditable="true"]',
         '.input-area div[contenteditable="true"]',
         '#rich-text-input',
+        'textarea[aria-label*="message"]',
+        'textarea[aria-label*="消息"]',
         'textarea'
     ];
     for (const selector of selectors) {
@@ -251,16 +276,35 @@ function findInputArea() {
     return null;
 }
 
-// Continuous check to bind glow effect if lost (e.g. page navigation)
-setInterval(() => {
-    const inputArea = findInputArea();
-    if (inputArea && isActive && !inputArea.classList.contains('ltc-thinking-active')) {
-        inputArea.classList.add('ltc-thinking-active');
+function getInputValue(inputArea) {
+    if (!inputArea) return "";
+    if (inputArea.nodeName === 'TEXTAREA') return (inputArea.value || "").trim();
+    return (inputArea.innerText || inputArea.textContent || "").trim();
+}
+
+function setInputValue(inputArea, value) {
+    if (!inputArea) return;
+    if (inputArea.nodeName === 'TEXTAREA') {
+        inputArea.value = value;
+    } else {
+        inputArea.innerText = value;
     }
+}
+
+function toggleInputGlow() {
+    const inputArea = findInputArea();
+    if (inputArea) {
+        inputArea.classList.toggle('ltc-thinking-active', isActive);
+    }
+}
+
+// Keep trying to bind glow
+setInterval(() => {
+    if (isActive) toggleInputGlow();
 }, 1000);
 
 /**
- * 5. Intercept & Wrap (Modified to save history)
+ * 5. PROMPT ENGINEERING ENGINE (Q1-Q4 LOGIC)
  */
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && isActive) {
@@ -273,8 +317,10 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('click', (e) => {
     if (isActive) {
-        const sendButton = e.target.closest('button[aria-label*="Send"], button.send-button');
-        if (sendButton) {
+        const btn = e.target.closest(
+            'button[aria-label*="Send"], button[aria-label*="发送"], button[aria-label*="提交"], button.send-button, button[data-testid="send-button"], button[data-test-id="send-button"]'
+        );
+        if (btn) {
             const inputArea = findInputArea();
             if (inputArea) handleSubmission(inputArea);
         }
@@ -282,50 +328,74 @@ document.addEventListener('click', (e) => {
 }, true);
 
 function handleSubmission(inputArea) {
-    const rawInput = inputArea.innerText.trim() || (inputArea.value ? inputArea.value.trim() : "");
-    if (!rawInput || rawInput.startsWith('[IDENTITY: COGNITIVE PROCESS EMULATOR]')) return;
+    const rawInput = getInputValue(inputArea);
+    if (!rawInput || rawInput.startsWith('# ENCODING INSTRUCTION')) return; // Avoid double wrap
 
-    // Save to History before wrapping
-    addToHistory(rawInput);
+    const now = Date.now();
+    if (rawInput === lastWrappedInput && now - lastWrappedAt < 1200) return; // Prevent double wrap on click+enter
 
-    const wrappedPrompt = wrapPrompt(rawInput);
+    addToHistory(rawInput); // Save user's original thought
 
-    if (inputArea.nodeName === 'TEXTAREA') {
-        inputArea.value = wrappedPrompt;
-    } else {
-        inputArea.innerText = wrappedPrompt;
-    }
+    // THE CORE: COGNITIVE META-ARCHITECTURE INJECTION
+    const wrappedPrompt = generateCognitivePrompt(rawInput);
+
+    setInputValue(inputArea, wrappedPrompt);
+    lastWrappedInput = rawInput;
+    lastWrappedAt = now;
 
     inputArea.dispatchEvent(new Event('input', { bubbles: true }));
     inputArea.dispatchEvent(new Event('change', { bubbles: true }));
 
-    // Store snapshots for the Dashboard Thinking Chain view
+    // Sync state for dashboard
     const mode = MODES[currentMode];
-    const snapshots = [
-        { title: "协议初始化", desc: `激活 ${mode.name} 框架` },
-        { title: "身份封包", desc: `模拟 ${mode.identity} 认知状态` },
-        { title: "思维注入", desc: "正在向 Gemini 注入元认知指令..." }
-    ];
-    chrome.storage.local.set({ 'ltc_last_thinking_steps': snapshots });
+    chrome.storage.local.set({
+        'ltc_last_thinking_steps': [
+            { title: "Q1: 盲区扫描", desc: `模拟 ${mode.identity} 视角过滤噪声` },
+            { title: "Q2: 试错模拟", desc: "执行直觉偏差测试 (Entropy Path)" },
+            { title: "Q3: 深度回溯", desc: "触发第一性原理 (First Principle) 纠偏" },
+            { title: "Q4: 认知交接", desc: "生成开放式引导追问" }
+        ]
+    });
 }
 
-function wrapPrompt(rawInput) {
+function generateCognitivePrompt(rawInput) {
     const mode = MODES[currentMode];
-    const profileString = JSON.stringify(userProfile, null, 2);
+    const profileJson = JSON.stringify(userProfile, null, 2);
 
-    return `[IDENTITY: COGNITIVE PROCESS EMULATOR - ${mode.identity}]
-You are NOT an expert AI. You are a representing the persona of a '${mode.identity}'.
-Your goal is to simulate the 'First Principles' of thinking through a problem.
+    return `# ENCODING INSTRUCTION FOR "LEARNTHINKINGCHAIN" [MODE: ${mode.name}]
 
-[EXECUTION PROTOCOL]
-${mode.protocol}
+## Part 1: Cognitive Scripting (The Q1-Q4 Framework)
+You are simulating a "First-Principle Backtracking" thought process. You MUST follow this 4-Quadrant Logic:
 
-[USER'S COGNITIVE PROFILE]
-${profileString}
+**Q1 - Blind Spot (Simulated Ignorance)**
+${mode.q1_blind_spot}
+*Action*: Identifying the "noise" or "trap" in the user's question.
 
-[USER'S CURRENT CHALLENGE]
+**Q2 - Entropy Path (The Mistake)**
+${mode.q2_entropy}
+*Action*: Explicitly start with: "I initially thought [wrong intuition]..." and show where it hits a wall.
+
+**Q3 - Deep Backtracking (The Pivot)**
+${mode.q3_backtrack}
+*Action*: Use a transition like: "Wait, this path leads to a contradiction. Let's go back to the origin."
+
+**Q4 - Cognitive Handover (The Guide)**
+${mode.q4_handover}
+*Action*: Do NOT give the answer. Ask a specific question that forces the user to see the missing link.
+
+## Part 2: Adversarial Validation (Anti-Lazy Rules)
+1. **FORBIDDEN**: Do NOT use words like "Obviously", "Clearly", "Simple". Do NOT give final formulas directly.
+2. **MANDATORY**: You must output the "I initially thought..." paragraph.
+3. **STYLE**: ${mode.identity} persona.
+
+## Part 3: Memory State
+[User Cognitive Profile]:
+${profileJson}
+
+## Part 4: The Input
+[USER'S CURRENT CHALLENGE]:
 ${rawInput}
 
-[CRITICAL CONSTRAINT]
-${mode.constraint}`;
+---
+*Execute the Q1-Q4 Logic Flow now.*`;
 }
