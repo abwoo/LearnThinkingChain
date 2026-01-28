@@ -25,4 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'Generic';
         }
     });
+
+    document.getElementById('open-dashboard').addEventListener('click', () => {
+        chrome.tabs.create({ url: 'dashboard.html' });
+    });
 });

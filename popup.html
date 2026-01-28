@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>LearnThinkingChain</title>
@@ -11,11 +12,13 @@
             background: #ffffff;
             color: #202124;
         }
+
         h1 {
             font-size: 18px;
             margin-top: 0;
             color: #1a73e8;
         }
+
         .profile-card {
             background: #f8f9fa;
             border-radius: 8px;
@@ -23,17 +26,21 @@
             margin-top: 12px;
             border: 1px solid #dadce0;
         }
+
         .stat {
             margin-bottom: 8px;
         }
+
         .label {
             font-size: 12px;
             color: #5f6368;
             font-weight: bold;
         }
+
         .value {
             font-size: 14px;
         }
+
         .footer {
             margin-top: 16px;
             font-size: 11px;
@@ -42,13 +49,14 @@
         }
     </style>
 </head>
+
 <body>
     <h1>LearnThinkingChain</h1>
     <div class="stat">
         <span class="label">Status:</span>
         <span id="status-val" class="value">Loading...</span>
     </div>
-    
+
     <div class="profile-card">
         <div class="stat">
             <span class="label">Knowledge Gaps:</span>
@@ -64,6 +72,21 @@
         Cognitive Process Emulator for Gemini
     </div>
 
+    <button id="open-dashboard" style="
+        width: 100%;
+        padding: 10px;
+        margin-top: 16px;
+        background: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 600;
+        transition: background 0.2s;
+    ">查看详细认知看板</button>
+
     <script src="popup.js"></script>
 </body>
+
 </html>

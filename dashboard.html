@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LearnThinkingChain - 认知看板</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="dark-mode">
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="icons/icon128.png" alt="LTC Logo" class="nav-logo">
+            <span class="logo-text">ThinkingChain</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="#overview" class="nav-item active">总览 (Dashboard)</a>
+            <a href="#history" class="nav-item">思维历程 (Memory)</a>
+            <a href="#settings" class="nav-item">高级配置 (Settings)</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="status-indicator active">系统就绪</div>
+        </div>
+    </aside>
+
+    <main class="content">
+        <header class="top-bar">
+            <h1>认知进化看板 <span class="subtitle">Cognitive Evolution Dashboard</span></h1>
+            <div class="user-profile">
+                <span id="last-sync">最后同步: 刚刚</span>
+            </div>
+        </header>
+
+        <section id="overview" class="dashboard-grid">
+            <div class="card stat-card header-bento">
+                <div class="bento-text">
+                    <h2>当前思维状态</h2>
+                    <p id="current-mode-display">正在使用：苏格拉底启发模式</p>
+                </div>
+                <div class="bento-visual">
+                    <div class="pulse-circle"></div>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <h3>思维风格分布 (Thinking Styles)</h3>
+                <div class="mock-chart">
+                    <div class="bar" style="height: 80%;" data-label="逻辑推导"></div>
+                    <div class="bar" style="height: 45%;" data-label="类比联想"></div>
+                    <div class="bar" style="height: 60%;" data-label="第一性原理"></div>
+                    <div class="bar" style="height: 30%;" data-label="直觉跃迁"></div>
+                </div>
+            </div>
+
+            <div class="card memory-card">
+                <h3>知识盲点雷达 (Knowledge Gaps)</h3>
+                <ul id="gaps-list" class="tag-list">
+                    <li class="tag">量子纠缠</li>
+                    <li class="tag">热力学第二定律</li>
+                    <li class="tag">递归算法</li>
+                    <li class="tag">布朗运动</li>
+                </ul>
+            </div>
+
+            <div class="card console-card">
+                <h3>实时认知流 (Cognitive Stream)</h3>
+                <div id="cognitive-logs" class="log-stream">
+                    <div class="log-entry">[19:40] 拦截到新 Prompt: "解释量子纠缠"</div>
+                    <div class="log-entry success">[19:41] 已应用 类比专家 框架</div>
+                    <div class="log-entry">[19:42] 成功识别知识盲点: 量子态叠加</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
