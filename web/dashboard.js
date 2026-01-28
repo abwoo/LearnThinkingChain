@@ -9,8 +9,18 @@ const CloudHub = {
         currentView: 'control',
         active: false,
         mode: 'novice',
-        profile: { missed_points: [], thinking_styles: [] },
-        history: []
+        profile: {
+            missed_points: [],
+            thinking_styles: [],
+            trial_error_history: [],
+            knowledge_gaps: [],
+            thinking_trend: "",
+            meta_cognitive_level: 1,
+            hidden_constraint_failures: 0,
+            learning_debt: { hidden_constraint: 0 }
+        },
+        history: [],
+        theme: 'dark'
     },
 
     async init() {
@@ -18,6 +28,8 @@ const CloudHub = {
 
         // Load saved extension ID from localStorage (browser-native)
         this.state.extensionId = localStorage.getItem('ltc_extension_id') || '';
+        this.state.theme = localStorage.getItem('ltc_theme') || 'dark';
+        this.applyTheme(this.state.theme);
         const idInput = document.getElementById('extension-id-input');
         if (idInput) {
             idInput.value = this.state.extensionId;
@@ -68,6 +80,11 @@ const CloudHub = {
             });
         });
 
+        document.getElementById('theme-toggle')?.addEventListener('click', () => {
+            const nextTheme = this.state.theme === 'dark' ? 'light' : 'dark';
+            this.applyTheme(nextTheme);
+        });
+
         document.getElementById('add-gap-btn')?.addEventListener('click', () => {
             const input = document.getElementById('new-gap-input');
             const val = input.value.trim();
@@ -110,15 +127,60 @@ const CloudHub = {
 
     updatePreview(rawInput) {
         const protocols = {
-            'novice': '[IDENTITY: Peer Learner]\n1. Initial Overwhelm\n2. Noise/Intuition\n3. Trial & Error\n4. Meta-Shift',
-            'socratic': '[IDENTITY: Socratic Mentor]\n1. No direct answers\n2. Guiding counter-questions',
-            'first_principles': '[IDENTITY: First-Principles]\n1. Atomize facts\n2. Rebuild logically',
-            'analogy': '[IDENTITY: Analogy Artist]\n1. Map to daily life\n2. Bridge back'
+            'novice': {
+                identity: 'Peer Learner',
+                focus: 'Explain like a peer who is still learning.',
+                q1: 'Simulate a beginner\'s blind spot and surface the most misleading cue.',
+                q2: 'Walk the naive path and show where it breaks.',
+                q3: 'Backtrack to the missing definition or constraint.',
+                q4: 'Give direction, end with an open question.'
+            },
+            'socratic': {
+                identity: 'Socratic Mentor',
+                focus: 'Ask guiding questions, never hand the answer.',
+                q1: 'Identify the misconception and restate it as a question.',
+                q2: 'Lead down the wrong path and expose the inconsistency.',
+                q3: 'Use a counter-example, return to the principle.',
+                q4: 'Ask them to rebuild the argument.'
+            },
+            'first_principles': {
+                identity: 'First Principles Analyst',
+                focus: 'Reduce to axioms and rebuild the chain.',
+                q1: 'Strip analogies, find hidden variables.',
+                q2: 'Try a shallow solution and show why it fails.',
+                q3: 'Decompose into axioms and isolate the pivot.',
+                q4: 'Provide the path, stop before computation.'
+            },
+            'analogy': {
+                identity: 'Analogical Master',
+                focus: 'Use analogy to reveal structure.',
+                q1: 'Describe what a novice sees without equations.',
+                q2: 'Try a weak analogy and show why it breaks.',
+                q3: 'Replace with an isomorphic analogy.',
+                q4: 'Map back to real variables with a question.'
+            }
         };
-        const template = protocols[this.state.mode] || protocols.novice;
+        const p = protocols[this.state.mode] || protocols.novice;
         const codeBox = document.getElementById('current-protocol-code');
         if (codeBox) {
-            codeBox.innerText = `${template}\n\n[USER MEMORY]\n${JSON.stringify(this.state.profile, null, 2)}\n\n[PROMPT]\n${rawInput}`;
+            codeBox.innerText = `# LearnThinkingChain Preview
+[Mode] ${this.state.mode.toUpperCase()}
+[Identity] ${p.identity}
+[Focus] ${p.focus}
+
+Q1: ${p.q1}
+Q2: ${p.q2}
+Q3: ${p.q3}
+Q4: ${p.q4}
+
+[Thinking Path Map]
+Start -> Wrong Turn -> Insight -> Target
+
+[User Memory]
+${JSON.stringify(this.state.profile, null, 2)}
+
+[Prompt]
+${rawInput}`;
         }
     },
 
@@ -158,6 +220,13 @@ const CloudHub = {
     deleteTag(index) {
         this.state.profile.missed_points.splice(index, 1);
         this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
+    },
+    applyTheme(theme) {
+        this.state.theme = theme;
+        localStorage.setItem('ltc_theme', theme);
+        document.body.classList.toggle('theme-light', theme === 'light');
+        const toggle = document.getElementById('theme-toggle');
+        if (toggle) toggle.innerText = theme === 'light' ? '☀️' : '🌙';
     }
 };
 

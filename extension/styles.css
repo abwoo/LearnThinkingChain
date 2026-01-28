@@ -1,14 +1,13 @@
 /* Global Glassmorphism Variables */
 :root {
     --glass-bg: rgba(17, 25, 40, 0.85);
-    /* Slightly darker for better contrast on white webpages */
     --glass-border: rgba(255, 255, 255, 0.15);
     --glass-blur: blur(25px) saturate(180%);
     --accent-blue: #007aff;
     --accent-glow: rgba(0, 122, 255, 0.6);
     --text-primary: #ffffff;
     --text-secondary: rgba(255, 255, 255, 0.7);
-    --hub-width: 280px;
+    --hub-width: 300px;
 }
 
 /* Floating Hub Container */
@@ -31,31 +30,31 @@
     flex-direction: column;
 }
 
-/* Header / Drag Handle */
+/* Header */
 .ltc-hub-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 14px 18px;
     cursor: grab;
     border-bottom: 1px solid transparent;
     transition: border-color 0.3s;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .ltc-hub-header:active {
     cursor: grabbing;
 }
 
-/* When panel is open */
 .ltc-floating-hub.expanded .ltc-hub-header {
     border-bottom: 1px solid var(--glass-border);
 }
 
 .ltc-brand {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--accent-blue);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: white;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -68,9 +67,9 @@
     border-radius: 2px;
 }
 
-/* Main Controls (Toggle & Select) */
+/* Controls */
 .ltc-controls-row {
-    padding: 12px 16px;
+    padding: 12px 18px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -79,14 +78,15 @@
 .ltc-toggle-group {
     display: flex;
     align-items: center;
-    justify-content: space-between;
 }
 
+/* Custom Checkbox */
 .ltc-switch {
     display: inline-block;
-    width: 40px;
-    height: 22px;
+    width: 44px;
+    height: 24px;
     position: relative;
+    flex-shrink: 0;
 }
 
 .ltc-slider {
@@ -105,8 +105,8 @@
 .ltc-slider:before {
     position: absolute;
     content: "";
-    height: 16px;
-    width: 16px;
+    height: 18px;
+    width: 18px;
     left: 2px;
     bottom: 2px;
     background-color: white;
@@ -116,46 +116,52 @@
 
 input:checked+.ltc-slider {
     background-color: var(--accent-blue);
-    box-shadow: 0 0 10px var(--accent-glow);
+    box-shadow: 0 0 15px var(--accent-glow);
 }
 
 input:checked+.ltc-slider:before {
-    transform: translateX(18px);
+    transform: translateX(20px);
 }
 
+/* Mode Select */
 .ltc-mode-select {
-    width: 100%;
     background: rgba(0, 0, 0, 0.3) !important;
     border: 1px solid var(--glass-border) !important;
     border-radius: 8px !important;
     color: white !important;
-    padding: 8px !important;
+    padding: 6px 10px !important;
     font-size: 13px !important;
     outline: none !important;
     cursor: pointer !important;
+    transition: 0.2s;
+}
+
+.ltc-mode-select:hover {
+    border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 /* Expand Button */
 .ltc-expand-btn {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.03);
     border: none;
     border-top: 1px solid var(--glass-border);
-    padding: 8px;
+    padding: 10px;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: 11px;
     cursor: pointer;
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     transition: 0.2s;
 }
 
 .ltc-expand-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     color: white;
 }
 
-/* History & Framework Panel (Hidden by default) */
+/* Info Panel */
 .ltc-info-panel {
     max-height: 0;
     overflow: hidden;
@@ -164,61 +170,128 @@ input:checked+.ltc-slider:before {
 }
 
 .ltc-floating-hub.expanded .ltc-info-panel {
-    max-height: 400px;
-    /* Arbitrary large limit */
+    max-height: 500px;
 }
 
 .ltc-panel-content {
-    padding: 16px;
+    padding: 18px;
+}
+
+.ltc-panel-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    margin-top: 16px;
+}
+
+.ltc-panel-row-header:first-child {
+    margin-top: 0;
 }
 
 .ltc-section-title {
     font-size: 11px;
-    color: var(--accent-blue);
-    font-weight: 700;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-}
-
-.ltc-framework-box {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 12px;
-    line-height: 1.4;
     color: var(--text-secondary);
-    margin-bottom: 16px;
-    font-family: monospace;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
+.ltc-mini-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.6;
+    transition: 0.2s;
+    padding: 0;
+}
+
+.ltc-mini-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Framework Box */
+.ltc-framework-box {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #e0e0e0;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    margin-bottom: 4px;
+}
+
+/* Thinking Path Map */
+.ltc-path-map {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px dashed var(--glass-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.2px;
+}
+
+.ltc-path-map span {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ltc-path-map .ltc-path-arrow {
+    background: none;
+    padding: 0;
+    opacity: 0.6;
+}
+
+/* Refined History List */
 .ltc-history-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
 .ltc-history-item {
     font-size: 12px;
     color: var(--text-secondary);
-    padding: 8px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 10px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: 0.2s;
+    /* Truncate text */
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.ltc-history-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .ltc-history-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
     color: white;
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(2px);
 }
 
-/* Gemini Input Glow */
+/* Gemini Input Glow (unchanged) */
 .ltc-thinking-active {
-    box-shadow: 0 0 30px var(--accent-glow) !important;
+    box-shadow: 0 0 40px var(--accent-glow) !important;
     border: 1px solid var(--accent-blue) !important;
+    background-color: rgba(0, 122, 255, 0.05) !important;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }

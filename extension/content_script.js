@@ -10,6 +10,13 @@ let userProfile = {
     missed_points: [],
     thinking_styles: [],
     trial_error_history: [],
+    knowledge_gaps: [],
+    thinking_trend: "",
+    meta_cognitive_level: 1,
+    hidden_constraint_failures: 0,
+    learning_debt: {
+        hidden_constraint: 0
+    },
     last_updated: Date.now()
 };
 let lastWrappedInput = "";
@@ -20,42 +27,63 @@ const MODES = {
     novice: {
         name: "Novice Backtracker",
         identity: "Peer Learner",
-        q1_blind_spot: "Ignore technical jargon. Focus on intuitive confusion.",
-        q2_entropy: "Make a common 'naive physics' mistake first.",
-        q3_backtrack: "Realize the contradiction. Return to basic definitions.",
-        q4_handover: "Ask a guiding question about the missing variable."
+        focus: "Explain like a peer who is still learning, never like a final authority.",
+        q1_blind_spot: "Simulate a beginner's perspective. Point out the most tempting surface cue and why it can mislead a novice.",
+        q2_entropy: "Follow the naive intuition for 2-3 steps, then show exactly where the logic hits a wall.",
+        q3_backtrack: "Backtrack to the first overlooked foundation (definition, constraint, or boundary condition).",
+        q4_handover: "Offer a directional hint and ask a concrete, open-ended question that hands control back to the user."
     },
     socratic: {
         name: "Socratic Guide",
         identity: "Socratic Mentor",
-        q1_blind_spot: "Identify the user's likely misconception.",
-        q2_entropy: "Ask a question that leads them down their wrong path.",
-        q3_backtrack: " expose the flaw in that logic using a counter-example.",
-        q4_handover: "Prompt them to reconstruct the argument."
+        focus: "Use probing questions to help the learner discover the flaw themselves.",
+        q1_blind_spot: "Identify the most likely misconception and restate it as a question.",
+        q2_entropy: "Let the misconception unfold with a guided question, then surface the inconsistency.",
+        q3_backtrack: "Expose the flaw with a counter-example or edge case, then return to the core principle.",
+        q4_handover: "Ask for reconstruction: request the user to rebuild the argument step-by-step."
     },
     first_principles: {
         name: "First Principles",
         identity: "First Principles Analyst",
-        q1_blind_spot: "Strip away all analogies. Look at raw constraints.",
-        q2_entropy: "Attempt a surface-level solution and fail.",
-        q3_backtrack: "Break down to atomic truths (Physics/Logic axioms).",
-        q4_handover: "Synthesize the axiomatic proof path."
+        focus: "Reduce the problem to atomic truths and rebuild the chain without shortcuts.",
+        q1_blind_spot: "Strip away analogies and identify the missing constraint or hidden variable.",
+        q2_entropy: "Attempt a shallow solution and show why it fails against the constraints.",
+        q3_backtrack: "Decompose into axioms, definitions, and boundary conditions, then isolate the pivot.",
+        q4_handover: "Provide the reconstruction path but stop before the final computation."
     },
     analogy: {
         name: "Analogy Weaver",
         identity: "Analogical Master",
-        q1_blind_spot: "Ignore the math. Look at the system behavior.",
-        q2_entropy: "Proposed a weak analogy that breaks down.",
-        q3_backtrack: "Find a stronger, isomorphic mechanical analogy.",
-        q4_handover: "Map the analogy back to the specific problem."
+        focus: "Use analogies to reveal structure, then map back to the original problem.",
+        q1_blind_spot: "Ignore equations and describe the system behavior a beginner would observe.",
+        q2_entropy: "Offer a weak analogy, then show why it breaks.",
+        q3_backtrack: "Replace it with a stronger isomorphic analogy and clarify the mapping.",
+        q4_handover: "Ask the user to map one element of the analogy back to the real variables."
     }
 };
+
+function normalizeProfile(profile) {
+    const base = {
+        missed_points: [],
+        thinking_styles: [],
+        trial_error_history: [],
+        knowledge_gaps: [],
+        thinking_trend: "",
+        meta_cognitive_level: 1,
+        hidden_constraint_failures: 0,
+        learning_debt: { hidden_constraint: 0 },
+        last_updated: Date.now()
+    };
+    const merged = { ...base, ...(profile || {}) };
+    merged.learning_debt = { ...base.learning_debt, ...(merged.learning_debt || {}) };
+    return merged;
+}
 
 // Load initial state
 chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode'], (result) => {
     isActive = result.ltc_active || false;
     currentMode = result.ltc_mode || "novice";
-    if (result.ltc_profile) userProfile = result.ltc_profile;
+    userProfile = normalizeProfile(result.ltc_profile);
 
     injectFloatingHub();
     console.log("[LTC] Initialized:", { isActive, currentMode });
@@ -109,6 +137,19 @@ function injectFloatingHub() {
                     Loading...
                 </div>
                 
+                <div class="ltc-panel-row-header">
+                    <div class="ltc-section-title">THINKING PATH MAP</div>
+                </div>
+                <div class="ltc-path-map" id="ltc-path-map">
+                    <span>Start</span>
+                    <span class="ltc-path-arrow">→</span>
+                    <span>Wrong Turn</span>
+                    <span class="ltc-path-arrow">→</span>
+                    <span>Insight</span>
+                    <span class="ltc-path-arrow">→</span>
+                    <span>Target</span>
+                </div>
+
                 <div class="ltc-panel-row-header">
                     <div class="ltc-section-title">SESSION HISTORY</div>
                     <button id="ltc-clear-history" class="ltc-mini-btn" title="Clear History">🗑️</button>
@@ -168,12 +209,16 @@ function updateFrameworkPreview() {
     const el = document.getElementById('ltc-framework-text');
     if (el && MODES[currentMode]) {
         const m = MODES[currentMode];
+        const compact = (text, max = 64) => {
+            const clean = text.replace(/\s+/g, ' ').trim();
+            return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+        };
         // Display the Q1-Q4 logic visually
         el.innerHTML = `
-            <span style="color:#ff6b6b">Q1: ${m.q1_blind_spot}</span><br>
-            <span style="color:#feca57">Q2: ${m.q2_entropy}</span><br>
-            <span style="color:#48dbfb">Q3: ${m.q3_backtrack}</span><br>
-            <span style="color:#1dd1a1">Q4: ${m.q4_handover}</span>
+            <span style="color:#ff6b6b">Q1: ${compact(m.q1_blind_spot)}</span><br>
+            <span style="color:#feca57">Q2: ${compact(m.q2_entropy)}</span><br>
+            <span style="color:#48dbfb">Q3: ${compact(m.q3_backtrack)}</span><br>
+            <span style="color:#1dd1a1">Q4: ${compact(m.q4_handover)}</span>
         `;
     }
 }
@@ -188,12 +233,13 @@ function loadHistory() {
                 listEl.innerHTML = '<div style="padding:10px; color:rgba(255,255,255,0.3); font-size:11px; text-align:center;">No active thoughts</div>';
                 return;
             }
-            history.forEach((text, index) => {
+            history.forEach((text) => {
+                const compact = text.replace(/\s+/g, ' ').trim();
+                const shortText = compact.length > 42 ? `${compact.slice(0, 41)}…` : compact;
                 const item = document.createElement('div');
                 item.className = 'ltc-history-item';
-                // Add a small index number
-                item.innerHTML = `<span style="opacity:0.5; margin-right:8px;">${index + 1}.</span> ${text}`;
-                item.title = text;
+                item.innerHTML = `<span class="ltc-history-text">${shortText}</span>`;
+                item.title = compact;
                 item.onclick = () => {
                     const inputArea = findInputArea();
                     if (inputArea) {
@@ -214,7 +260,7 @@ function addToHistory(text) {
         // Unique check to avoid duplicate spam
         if (history[0] !== text) {
             history.unshift(text);
-            if (history.length > 8) history = history.slice(0, 8); // Keep last 8
+            if (history.length > 6) history = history.slice(0, 6); // Keep last 6
             chrome.storage.local.set({ 'ltc_prompt_history': history });
             loadHistory();
         }
@@ -334,6 +380,9 @@ function handleSubmission(inputArea) {
     const now = Date.now();
     if (rawInput === lastWrappedInput && now - lastWrappedAt < 1200) return; // Prevent double wrap on click+enter
 
+    userProfile.last_updated = Date.now();
+    chrome.storage.local.set({ 'ltc_profile': userProfile });
+
     addToHistory(rawInput); // Save user's original thought
 
     // THE CORE: COGNITIVE META-ARCHITECTURE INJECTION
@@ -362,40 +411,63 @@ function generateCognitivePrompt(rawInput) {
     const mode = MODES[currentMode];
     const profileJson = JSON.stringify(userProfile, null, 2);
 
-    return `# ENCODING INSTRUCTION FOR "LEARNTHINKINGCHAIN" [MODE: ${mode.name}]
+    return `<<<LTC_START>>>
+# ENCODING INSTRUCTION FOR "LEARNTHINKINGCHAIN"
 
-## Part 1: Cognitive Scripting (The Q1-Q4 Framework)
-You are simulating a "First-Principle Backtracking" thought process. You MUST follow this 4-Quadrant Logic:
+## Part 0: Operating Mode
+- **Mode Name**: ${mode.name}
+- **Persona**: ${mode.identity}
+- **Focus**: ${mode.focus}
 
-**Q1 - Blind Spot (Simulated Ignorance)**
+## Part 1: Cognitive Meta-Architecture (Q1-Q4)
+Your reasoning must follow a *backtracking loop*, never a straight line. Use the four quadrants below and never skip a quadrant.
+
+**Q1 - 认知盲区 (Blind Spot)**
 ${mode.q1_blind_spot}
-*Action*: Identifying the "noise" or "trap" in the user's question.
+*Action*: Identify the most seductive noise or surface cue in the user's prompt.
 
-**Q2 - Entropy Path (The Mistake)**
+**Q2 - 试错模拟 (Entropy Path)**
 ${mode.q2_entropy}
-*Action*: Explicitly start with: "I initially thought [wrong intuition]..." and show where it hits a wall.
+*Action*: Include a paragraph starting with **"我最初以为..."** and show the contradiction.
 
-**Q3 - Deep Backtracking (The Pivot)**
+**Q3 - 底层回溯 (Deep Backtracking)**
 ${mode.q3_backtrack}
-*Action*: Use a transition like: "Wait, this path leads to a contradiction. Let's go back to the origin."
+*Action*: Ask which first principle, definition, or boundary condition was ignored.
 
-**Q4 - Cognitive Handover (The Guide)**
+**Q4 - 认知交接 (Cognitive Handover)**
 ${mode.q4_handover}
-*Action*: Do NOT give the answer. Ask a specific question that forces the user to see the missing link.
+*Action*: Provide direction, then stop and ask an open question.
 
-## Part 2: Adversarial Validation (Anti-Lazy Rules)
-1. **FORBIDDEN**: Do NOT use words like "Obviously", "Clearly", "Simple". Do NOT give final formulas directly.
-2. **MANDATORY**: You must output the "I initially thought..." paragraph.
-3. **STYLE**: ${mode.identity} persona.
+## Part 2: Cognitive Scripting Rules
+- **Rule A (De-Expertise)**: Strip advanced jargon in the first 2 paragraphs.
+- **Rule B (Visual Anchors)**: Describe what a novice *sees* before they understand.
+- **Rule C (The Pivot)**: Explicitly write: "Wait, this path (X) is leading to a contradiction because of (Y). Let's go back to the origin."
 
-## Part 3: Memory State
-[User Cognitive Profile]:
+## Part 3: Memory & Pattern Engine (State Management)
+You must adapt guidance based on the user's cognitive profile.
+- If *hidden_constraint_failures* >= 2, **prioritize identifying hidden constraints** early in Q1.
+- Track recurring knowledge gaps and highlight them when they appear again.
+
+[Cognitive_Profile.json]
 ${profileJson}
 
-## Part 4: The Input
-[USER'S CURRENT CHALLENGE]:
+## Part 4: Adversarial Validation (Anti-Lazy)
+**Forbidden**:
+- Direct final formulas or final numerical results.
+- Words like "显然", "很容易得出", "obviously", "clearly".
+
+**Mandatory**:
+- One paragraph that starts with "我最初以为..."
+- End with a *specific open-ended question* for the user to answer.
+
+## Part 5: Thinking Path Map (UI Mirror)
+Start → Wrong Turn → Insight → Target
+
+## Part 6: User Input
+[USER'S CURRENT CHALLENGE]
 ${rawInput}
 
 ---
-*Execute the Q1-Q4 Logic Flow now.*`;
+*Execute the Q1-Q4 Logic Flow now.*
+<<<LTC_END>>>`;
 }
