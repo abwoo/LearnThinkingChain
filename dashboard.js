@@ -1,85 +1,154 @@
-// dashboard.js - v2 (Reactive Hub)
+/**
+ * LearnThinkingChain - Cognitive Engine v3.0
+ * This version treats the Dashboard as a full-featured App.
+ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    init();
+const AppStore = {
+    state: {
+        active: false,
+        mode: 'novice',
+        profile: { missed_points: [], thinking_styles: [], trial_error_history: [] },
+        lastThinkingSteps: [],
+        previewInput: "在此处测试您的提问...",
+        wrappedPreview: ""
+    },
 
-    // Listen for storage changes to update live
-    chrome.storage.onChanged.addListener((changes) => {
-        console.log("[LTC] Storage sync detected", changes);
-        updateUI();
-    });
-});
+    async init() {
+        console.log("[LTC] Hub App Initializing...");
+        await this.loadFromStorage();
+        this.setupListeners();
+        this.renderAll();
+    },
 
-function init() {
-    updateUI();
+    async loadFromStorage() {
+        const data = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_profile', 'ltc_last_thinking_steps']);
+        this.state.active = data.ltc_active || false;
+        this.state.mode = data.ltc_mode || 'novice';
+        if (data.ltc_profile) this.state.profile = data.ltc_profile;
+        if (data.ltc_last_thinking_steps) this.state.lastThinkingSteps = data.ltc_last_thinking_steps;
+        this.updatePreview();
+    },
 
-    document.getElementById('reset-profile').addEventListener('click', () => {
-        if (confirm("确定要清空所有认知记忆吗？这将重置您的学习画像。")) {
-            chrome.storage.local.set({
-                'ltc_profile': { missed_points: [], thinking_styles: [], trial_error_history: [], last_updated: Date.now() }
-            }, () => {
-                updateUI();
-            });
-        }
-    });
-}
+    setupListeners() {
+        // Listen for external updates (from Gemini page)
+        chrome.storage.onChanged.addListener(() => this.loadFromStorage().then(() => this.renderAll()));
 
-function updateUI() {
-    chrome.storage.local.get(['ltc_profile', 'ltc_mode', 'ltc_active', 'ltc_last_thinking_steps'], (data) => {
-        // 1. Update Mode
+        // Global Reset
+        document.getElementById('reset-profile')?.addEventListener('click', () => {
+            if (confirm("清空认知记忆？")) {
+                this.state.profile = { missed_points: [], thinking_styles: [], trial_error_history: [] };
+                this.saveProfile();
+            }
+        });
+
+        // Interactive Preview
+        const previewInput = document.getElementById('preview-test-input');
+        previewInput?.addEventListener('input', (e) => {
+            this.state.previewInput = e.target.value;
+            this.updatePreview();
+            this.renderPreview();
+        });
+
+        // Tag adding
+        document.getElementById('add-gap-btn')?.addEventListener('click', () => {
+            const input = document.getElementById('new-gap-input');
+            const val = input.value.trim();
+            if (val) {
+                this.state.profile.missed_points.push(val);
+                input.value = '';
+                this.saveProfile();
+            }
+        });
+    },
+
+    updatePreview() {
+        const MODES = {
+            novice: { identity: "Peer Learner", protocol: "1. Novice Gaze\n2. Noise\n3. Trial & Error\n4. Meta-Shift" },
+            socratic: { identity: "Socratic Mentor", protocol: "1. No solutions\n2. Counter-questions\n3. Scaffolding" },
+            first_principles: { identity: "Analyst", protocol: "1. Atomize\n2. Rebuild\n3. Fundamental Truths" },
+            analogy: { identity: "Analogy Master", protocol: "1. Daily Life Map\n2. Bridging\n3. Transfer" }
+        };
+        const mode = MODES[this.state.mode] || MODES.novice;
+        const profileStr = JSON.stringify(this.state.profile, null, 2);
+
+        this.state.wrappedPreview = `[IDENTITY: ${mode.identity}]
+${mode.protocol}
+
+[USER PROFILE]
+${profileStr}
+
+[CORE CHALLENGE]
+${this.state.previewInput}`;
+    },
+
+    saveProfile() {
+        chrome.storage.local.set({ 'ltc_profile': this.state.profile }, () => {
+            this.renderAll();
+        });
+    },
+
+    renderAll() {
+        this.renderStatus();
+        this.renderMemory();
+        this.renderPreview();
+        this.renderChain();
+    },
+
+    renderStatus() {
         const modeEl = document.getElementById('active-mode');
-        const modeNames = {
-            'novice': '初学者探索模式',
-            'socratic': '苏格拉底启发模式',
-            'first_principles': '第一性原理模式',
-            'analogy': '类比专家映射模式'
-        };
-        if (modeEl) {
-            modeEl.innerText = modeNames[data.ltc_mode] || '未知模式';
-        }
+        if (modeEl) modeEl.innerText = this.state.mode.toUpperCase() + " 引擎就绪";
 
-        // 2. Update Protocol Code Box
-        const codeBox = document.getElementById('current-protocol-code');
-        const protocols = {
-            'novice': '[IDENTITY: Peer Learner]\n1. Start with confusion\n2. Attempt & Fail\n3. Metacognitive Shift\n4. Guiding Question',
-            'socratic': '[IDENTITY: Socratic Mentor]\n1. No answers\n2. Guiding counter-questions\n3. Scaffolding logic\n4. Self-discovery',
-            'first_principles': '[IDENTITY: Analytical First-Principles]\n1. Deconstruct to physics/logic\n2. Question assumptions\n3. Rebuild from scratch\n4. Base facts explanation',
-            'analogy': '[IDENTITY: Analogy Artist]\n1. Map to daily life\n2. Explain mechanic via metaphor\n3. Bridge back to problem\n4. Transfer question'
-        };
-        if (codeBox) {
-            codeBox.innerText = protocols[data.ltc_mode] || 'Standard Protocol active.';
-        }
+        const banner = document.getElementById('mode-banner-text');
+        if (banner) banner.innerText = `当前协议：${this.state.mode}`;
+    },
 
-        // 3. Update Thinking Chain (Live Data)
-        const chainContainer = document.getElementById('live-chain');
-        if (data.ltc_last_thinking_steps && data.ltc_last_thinking_steps.length > 0) {
-            chainContainer.innerHTML = '';
-            data.ltc_last_thinking_steps.forEach((step, index) => {
-                const stepDiv = document.createElement('div');
-                stepDiv.className = 'chain-step';
-                stepDiv.innerHTML = `
-                    <div class="step-icon">${index + 1}</div>
-                    <div class="step-content">
-                        <h4>${step.title}</h4>
-                        <p>${step.desc}</p>
-                    </div>
-                `;
-                chainContainer.appendChild(stepDiv);
+    renderMemory() {
+        const list = document.getElementById('gaps-list');
+        if (!list) return;
+        list.innerHTML = '';
+        this.state.profile.missed_points.forEach((gap, i) => {
+            const tag = document.createElement('li');
+            tag.className = 'tag-interactive';
+            tag.innerHTML = `${gap} <span class="remove-tag" data-index="${i}">×</span>`;
+            list.appendChild(tag);
+        });
 
-                if (index < data.ltc_last_thinking_steps.length - 1) {
-                    const conn = document.createElement('div');
-                    conn.className = 'chain-connector';
-                    chainContainer.appendChild(conn);
-                }
-            });
-        }
+        // Add delete listeners
+        list.querySelectorAll('.remove-tag').forEach(btn => {
+            btn.onclick = (e) => {
+                const idx = e.target.dataset.index;
+                this.state.profile.missed_points.splice(idx, 1);
+                this.saveProfile();
+            };
+        });
+    },
 
-        // 4. Radar Animation (Mock update)
-        const radar = document.querySelector('.radar-fill');
-        if (radar) {
-            // Add a small jitter to make it look alive
-            const jitter = 5 + Math.random() * 5;
-            radar.style.transform = `scale(${0.98 + (Math.random() * 0.04)})`;
-        }
-    });
-}
+    renderPreview() {
+        const box = document.getElementById('current-protocol-code');
+        if (box) box.innerText = this.state.wrappedPreview;
+    },
+
+    renderChain() {
+        const container = document.getElementById('live-chain');
+        if (!container) return;
+        container.innerHTML = '';
+        const steps = this.state.lastThinkingSteps.length > 0 ? this.state.lastThinkingSteps : [
+            { title: "系统空闲", desc: "等待 Gemini 指令交互..." }
+        ];
+
+        steps.forEach((step, i) => {
+            const div = document.createElement('div');
+            div.className = 'chain-step-v3 animate-in';
+            div.innerHTML = `
+                <div class="step-num">${i + 1}</div>
+                <div class="step-data">
+                    <h5>${step.title}</h5>
+                    <p>${step.desc}</p>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+};
+
+AppStore.init();
