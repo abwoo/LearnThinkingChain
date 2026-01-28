@@ -169,6 +169,15 @@ function handleSubmission(inputArea) {
 
     inputArea.dispatchEvent(new Event('input', { bubbles: true }));
     inputArea.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Store snapshots for the Dashboard Thinking Chain view
+    const mode = MODES[currentMode];
+    const snapshots = [
+        { title: "协议初始化", desc: `激活 ${mode.name} 框架` },
+        { title: "身份封包", desc: `模拟 ${mode.identity} 认知状态` },
+        { title: "思维注入", desc: "正在向 Gemini 注入元认知指令..." }
+    ];
+    chrome.storage.local.set({ 'ltc_last_thinking_steps': snapshots });
 }
 
 function wrapPrompt(rawInput) {

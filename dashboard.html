@@ -4,78 +4,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LearnThinkingChain - 认知看板</title>
+    <title>LT Chain - Cognitive Engine</title>
     <link rel="stylesheet" href="dashboard.css">
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@300;400;600;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
 </head>
 
-<body class="dark-mode">
-    <aside class="sidebar">
-        <div class="logo-area">
-            <img src="icons/icon128.png" alt="LTC Logo" class="nav-logo">
-            <span class="logo-text">ThinkingChain</span>
-        </div>
-        <nav class="nav-menu">
-            <a href="#overview" class="nav-item active">总览 (Dashboard)</a>
-            <a href="#history" class="nav-item">思维历程 (Memory)</a>
-            <a href="#settings" class="nav-item">高级配置 (Settings)</a>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="status-indicator active">系统就绪</div>
-        </div>
-    </aside>
+<body class="engine-dark">
+    <!-- Background FX -->
+    <div class="glow-bg"></div>
 
-    <main class="content">
-        <header class="top-bar">
-            <h1>认知进化看板 <span class="subtitle">Cognitive Evolution Dashboard</span></h1>
-            <div class="user-profile">
-                <span id="last-sync">最后同步: 刚刚</span>
-            </div>
-        </header>
-
-        <section id="overview" class="dashboard-grid">
-            <div class="card stat-card header-bento">
-                <div class="bento-text">
-                    <h2>当前思维状态</h2>
-                    <p id="current-mode-display">正在使用：苏格拉底启发模式</p>
-                </div>
-                <div class="bento-visual">
-                    <div class="pulse-circle"></div>
+    <div class="layout-container">
+        <!-- Vertical Sidebar -->
+        <aside class="sidebar-v2">
+            <div class="brand">
+                <div class="brain-icon-v2"></div>
+                <div class="brand-text">
+                    <span class="main-title">LT CHAIN</span>
+                    <span class="version-tag">PRO V2.5</span>
                 </div>
             </div>
 
-            <div class="card chart-card">
-                <h3>思维风格分布 (Thinking Styles)</h3>
-                <div class="mock-chart">
-                    <div class="bar" style="height: 80%;" data-label="逻辑推导"></div>
-                    <div class="bar" style="height: 45%;" data-label="类比联想"></div>
-                    <div class="bar" style="height: 60%;" data-label="第一性原理"></div>
-                    <div class="bar" style="height: 30%;" data-label="直觉跃迁"></div>
+            <nav class="nav-v2">
+                <div class="nav-group">
+                    <span class="group-label">主要控制</span>
+                    <a href="#" class="nav-link active" data-view="engine">
+                        <i class="icon-engine"></i> 认知引擎
+                    </a>
+                    <a href="#" class="nav-link" data-view="memory">
+                        <i class="icon-memory"></i> 知识图谱
+                    </a>
+                </div>
+                <div class="nav-group">
+                    <span class="group-label">框架库</span>
+                    <a href="#" class="nav-link" data-view="protocols">
+                        <i class="icon-protocol"></i> 运行协议
+                    </a>
+                </div>
+            </nav>
+
+            <div class="system-health">
+                <div class="pulse-dot"></div>
+                <span>思维频率: 4.2Hz</span>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <header class="workspace-header">
+                <div class="status-badge">
+                    <span class="mode-indicator" id="active-mode">苏格拉底启发模式</span>
+                    <span class="status-chip online">实时同步中</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-primary" id="reset-profile">清空认知记忆</button>
+                </div>
+            </header>
+
+            <div class="view-container active" id="engine-view">
+                <div class="grid-layout">
+                    <!-- Live Thinking Chain -->
+                    <section class="card-v2 glass-card chain-section">
+                        <div class="card-header">
+                            <h3>实时认知链路 (Live Thinking Chain)</h3>
+                            <span class="card-desc">展示 AI 拦截后的思维跳变与元认知路径</span>
+                        </div>
+                        <div class="thinking-chain-container" id="live-chain">
+                            <!-- Steps are injected here -->
+                            <div class="chain-step">
+                                <div class="step-icon">01</div>
+                                <div class="step-content">
+                                    <h4>初学者凝视 (Novice Gaze)</h4>
+                                    <p>识别输入信号中的视觉锚点与混淆项...</p>
+                                </div>
+                            </div>
+                            <div class="chain-connector"></div>
+                            <div class="chain-step processing">
+                                <div class="step-icon">02</div>
+                                <div class="step-content">
+                                    <h4>噪声捕获 (Noise Capture)</h4>
+                                    <p>正在分析用户常见的认知偏差路径...</p>
+                                </div>
+                            </div>
+                            <!-- Mock lines for the tree -->
+                            <div class="chain-connector pending"></div>
+                            <div class="chain-step pending">
+                                <div class="step-icon">03</div>
+                                <div class="step-content">
+                                    <h4>元认知跳变 (Metacognitive Shift)</h4>
+                                    <p>待检索...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Profile Distribution -->
+                    <section class="card-v2 glass-card profile-section">
+                        <div class="card-header">
+                            <h3>认知分布 (Cognitive Distribution)</h3>
+                        </div>
+                        <div class="radar-container">
+                            <div class="radar-mock">
+                                <!-- Minimalist SVG Radar -->
+                                <svg viewbox="0 0 100 100">
+                                    <polygon points="50,10 90,40 70,90 30,90 10,40" class="radar-bg" />
+                                    <polygon points="50,25 80,45 65,80 35,75 20,45" class="radar-fill" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="stat-labels">
+                            <div class="stat-row"><span>逻辑稳定性</span><strong>88%</strong></div>
+                            <div class="stat-row"><span>类比迁移率</span><strong>64%</strong></div>
+                            <div class="stat-row"><span>第一性深度</span><strong>92%</strong></div>
+                        </div>
+                    </section>
+
+                    <!-- Detailed Framework -->
+                    <section class="card-v2 glass-card framework-section">
+                        <div class="card-header">
+                            <h3>框架核心指令 (Core Protocol)</h3>
+                        </div>
+                        <div class="code-box">
+                            <pre id="current-protocol-code">
+[IDENTITY: COGNITIVE PROCESS EMULATOR]
+1. Describe initial overwhelm.
+2. Propose a logic path.
+3. Fail explicitly.
+4. Metacognitive shift.
+                            </pre>
+                        </div>
+                    </section>
                 </div>
             </div>
-
-            <div class="card memory-card">
-                <h3>知识盲点雷达 (Knowledge Gaps)</h3>
-                <ul id="gaps-list" class="tag-list">
-                    <li class="tag">量子纠缠</li>
-                    <li class="tag">热力学第二定律</li>
-                    <li class="tag">递归算法</li>
-                    <li class="tag">布朗运动</li>
-                </ul>
-            </div>
-
-            <div class="card console-card">
-                <h3>实时认知流 (Cognitive Stream)</h3>
-                <div id="cognitive-logs" class="log-stream">
-                    <div class="log-entry">[19:40] 拦截到新 Prompt: "解释量子纠缠"</div>
-                    <div class="log-entry success">[19:41] 已应用 类比专家 框架</div>
-                    <div class="log-entry">[19:42] 成功识别知识盲点: 量子态叠加</div>
-                </div>
-            </div>
-        </section>
-    </main>
+        </main>
+    </div>
 
     <script src="dashboard.js"></script>
 </body>
