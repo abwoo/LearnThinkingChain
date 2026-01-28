@@ -1,14 +1,11 @@
 /**
- * LearnThinkingChain Content Script
- * 
- * Responsibilities:
- * 1. Inject the "LearnThinkingChain Mode" toggle into Gemini.
- * 2. Intercept prompt submission.
- * 3. Wrap prompts with the Cognitive Evolution Framework.
- * 4. Update the Cognitive Profile in chrome.storage.local.
+ * LearnThinkingChain Content Script - v2.0 (Multi-Mode)
  */
 
+console.log("[LTC] Content script v2.0 loaded");
+
 let isActive = false;
+let currentMode = "novice";
 let userProfile = {
     missed_points: [],
     thinking_styles: [],
@@ -16,83 +13,133 @@ let userProfile = {
     last_updated: Date.now()
 };
 
+const MODES = {
+    novice: {
+        name: "初学者探索 (Novice)",
+        identity: "Peer Learner",
+        protocol: "1. 描述初步的困惑。2. 尝试一个错误的直觉并解释为何失败。3. 展示‘顿悟’时刻。4. 在最终答案前停下。",
+        constraint: "Stop before the final result. Ask a guiding question."
+    },
+    socratic: {
+        name: "苏格拉底启发 (Socratic)",
+        identity: "Socratic Mentor",
+        protocol: "1. 不要直接回答。2. 通过一系列反问引导用户。3. 确认识别用户的知识盲点。4. 鼓励逻辑自洽。",
+        constraint: "NEVER provide the full answer. Only lead the user to find it themselves."
+    },
+    first_principles: {
+        name: "第一性原理 (First Principles)",
+        identity: "First Principles Analyst",
+        protocol: "1. 拆解问题到最基础的物理/逻辑事实。2. 质疑所有常规假设。3. 从零开始重建推导流程。4. 解释每一层逻辑的基石。",
+        constraint: "Provide an atomic breakdown. Stop before the synthesis of the final answer."
+    },
+    analogy: {
+        name: "类比专家 (Analogical)",
+        identity: "Analogical Master",
+        protocol: "1. 找一个看似无关但逻辑相似的日常生活场景。2. 用这个类比解释核心机制。3. 映射类比到当前问题。4. 提出一个类比迁移问题。",
+        constraint: "Focus on conceptual mapping. Stop before the calculation/final result."
+    }
+};
+
 // Load initial state
-chrome.storage.local.get(['ltc_active', 'ltc_profile'], (result) => {
+chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode'], (result) => {
     isActive = result.ltc_active || false;
+    currentMode = result.ltc_mode || "novice";
     if (result.ltc_profile) {
         userProfile = result.ltc_profile;
     }
+    console.log("[LTC] Initialized:", { isActive, currentMode, userProfile });
     initializeUI();
 });
 
-/**
- * Initialize the UI components (Toggle Switch)
- */
-function initializeUI() {
-    const observer = new MutationObserver((mutations) => {
-        const inputArea = document.querySelector('div[contenteditable="true"][role="textbox"]');
-        if (inputArea && !document.querySelector('.ltc-toggle-container')) {
-            injectToggle(inputArea);
-        }
-        
-        // Apply glow if active
-        if (inputArea) {
-            if (isActive) {
-                inputArea.classList.add('ltc-thinking-active');
-            } else {
-                inputArea.classList.remove('ltc-thinking-active');
-            }
-        }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
+function findInputArea() {
+    const selectors = [
+        'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"]',
+        '.input-area div[contenteditable="true"]',
+        '#rich-text-input',
+        'textarea'
+    ];
+    for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el) return el;
+    }
+    return null;
 }
 
-/**
- * Inject the toggle switch into the DOM
- */
-function injectToggle(inputArea) {
-    // Find a suitable parent container. Usually the one containing the input and action buttons.
-    const container = inputArea.closest('.input-area-container') || inputArea.parentElement;
-    
-    const toggleDiv = document.createElement('div');
-    toggleDiv.className = `ltc-toggle-container ${isActive ? 'active' : ''}`;
-    toggleDiv.innerHTML = `
+function initializeUI() {
+    const observer = new MutationObserver(() => {
+        const inputArea = findInputArea();
+        if (inputArea && !document.querySelector('.ltc-toggle-container')) {
+            injectUI(inputArea);
+        }
+        if (inputArea) {
+            inputArea.classList.toggle('ltc-thinking-active', isActive);
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    setInterval(() => {
+        const inputArea = findInputArea();
+        if (inputArea && !document.querySelector('.ltc-toggle-container')) {
+            injectUI(inputArea);
+        }
+    }, 2000);
+}
+
+function injectUI(inputArea) {
+    const container = inputArea.closest('.input-area-container') ||
+        inputArea.closest('.prompt-input-container') ||
+        inputArea.parentElement;
+
+    if (!container || document.querySelector('.ltc-toggle-container')) return;
+
+    const uiDiv = document.createElement('div');
+    uiDiv.className = `ltc-toggle-container ${isActive ? 'active' : ''}`;
+
+    let modeOptions = "";
+    for (const key in MODES) {
+        modeOptions += `<option value="${key}" ${currentMode === key ? 'selected' : ''}>${MODES[key].name}</option>`;
+    }
+
+    uiDiv.innerHTML = `
         <label class="ltc-switch">
             <input type="checkbox" id="ltc-toggle-checkbox" ${isActive ? 'checked' : ''}>
             <span class="ltc-slider"></span>
         </label>
-        <span class="ltc-status-text">LearnThinkingChain Mode</span>
+        <span class="ltc-status-text">ThinkingChain</span>
+        <select id="ltc-mode-select" class="ltc-mode-select">
+            ${modeOptions}
+        </select>
     `;
 
-    // Insert before the input area's parent or within the input bar
-    if (container) {
-        container.parentElement.insertBefore(toggleDiv, container);
+    if (container.parentElement) {
+        container.parentElement.insertBefore(uiDiv, container);
     }
 
-    const checkbox = toggleDiv.querySelector('#ltc-toggle-checkbox');
+    // Listeners
+    const checkbox = uiDiv.querySelector('#ltc-toggle-checkbox');
     checkbox.addEventListener('change', (e) => {
         isActive = e.target.checked;
-        toggleDiv.classList.toggle('active', isActive);
+        uiDiv.classList.toggle('active', isActive);
         chrome.storage.local.set({ 'ltc_active': isActive });
-        
-        if (isActive) {
-            inputArea.classList.add('ltc-thinking-active');
-        } else {
-            inputArea.classList.remove('ltc-thinking-active');
-        }
+        inputArea.classList.toggle('ltc-thinking-active', isActive);
+    });
+
+    const modeSelect = uiDiv.querySelector('#ltc-mode-select');
+    modeSelect.addEventListener('change', (e) => {
+        currentMode = e.target.value;
+        chrome.storage.local.set({ 'ltc_mode': currentMode });
+        console.log("[LTC] Mode changed to:", currentMode);
     });
 }
 
 /**
- * Intercept Submission
- * Note: Gemini uses a contenteditable div. We need to catch the Enter key 
- * AND the click on the "Send" button.
+ * Intercept & Wrap
  */
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && isActive) {
-        const inputArea = document.querySelector('div[contenteditable="true"][role="textbox"]');
-        if (inputArea && inputArea.contains(e.target)) {
+        const inputArea = findInputArea();
+        if (inputArea && (inputArea.contains(e.target) || e.target === inputArea)) {
             handleSubmission(inputArea);
         }
     }
@@ -100,52 +147,40 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('click', (e) => {
     if (isActive) {
-        const sendButton = e.target.closest('button[aria-label="Send message"]');
+        const sendButton = e.target.closest('button[aria-label*="Send"], button.send-button');
         if (sendButton) {
-            const inputArea = document.querySelector('div[contenteditable="true"][role="textbox"]');
-            if (inputArea) {
-                handleSubmission(inputArea);
-            }
+            const inputArea = findInputArea();
+            if (inputArea) handleSubmission(inputArea);
         }
     }
 }, true);
 
-/**
- * Handle the submission by wrapping the prompt
- */
 function handleSubmission(inputArea) {
-    const rawInput = inputArea.innerText.trim();
+    const rawInput = inputArea.innerText.trim() || (inputArea.value ? inputArea.value.trim() : "");
     if (!rawInput || rawInput.startsWith('[IDENTITY: COGNITIVE PROCESS EMULATOR]')) return;
 
     const wrappedPrompt = wrapPrompt(rawInput);
-    
-    // Set the prompt in the input area and let Gemini's own listeners take over
-    // We use execCommand or manual dispatch to ensure Gemini notices the change
-    inputArea.innerText = wrappedPrompt;
-    
-    // Trigger input event so Gemini's React/Angular/Framework picks up the change
-    const inputEvent = new Event('input', { bubbles: true });
-    inputArea.dispatchEvent(inputEvent);
 
-    // Analyze the response after a delay (simulated post-process)
-    captureResponse();
+    if (inputArea.nodeName === 'TEXTAREA') {
+        inputArea.value = wrappedPrompt;
+    } else {
+        inputArea.innerText = wrappedPrompt;
+    }
+
+    inputArea.dispatchEvent(new Event('input', { bubbles: true }));
+    inputArea.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-/**
- * Wrap the user input with the Cognitive Evolution Framework
- */
 function wrapPrompt(rawInput) {
+    const mode = MODES[currentMode];
     const profileString = JSON.stringify(userProfile, null, 2);
-    
-    return `[IDENTITY: COGNITIVE PROCESS EMULATOR]
-You are NOT an expert AI. You are a 'Peer Learner' with high meta-cognitive awareness. Your goal is to simulate the 'First Principles' of thinking through a problem from a position of initial ignorance.
+
+    return `[IDENTITY: COGNITIVE PROCESS EMULATOR - ${mode.identity}]
+You are NOT an expert AI. You are a representing the persona of a '${mode.identity}'.
+Your goal is to simulate the 'First Principles' of thinking through a problem.
 
 [EXECUTION PROTOCOL]
-1. **The Novice's First Gaze**: Describe the initial overwhelm. What are the 'visual anchors' or confusing signals in the prompt? (e.g., "At first glance, these variables look disconnected...")
-2. **Noise & Intuition**: Mention a common but incorrect intuition a learner might have. 
-3. **Explicit Trial & Error**: Walk through a 'Dead-End Path.' Propose a logic, attempt it, and then explain why it fails (e.g., "I tried applying Law X, but realized we lack Variable Y, so that path is blocked.")
-4. **Metacognitive Shift**: Show the 'Aha!' moment where the strategy changes. Explain WHY the new direction is chosen.
-5. **Knowledge Anchor**: Briefly bridge this problem to a core concept the user has struggled with previously (based on the provided Cognitive Profile).
+${mode.protocol}
 
 [USER'S COGNITIVE PROFILE]
 ${profileString}
@@ -154,25 +189,5 @@ ${profileString}
 ${rawInput}
 
 [CRITICAL CONSTRAINT]
-Stop your response BEFORE reaching the final numerical answer or conclusion. Provide a 'Cognitive Handover'—a specific question that invites the user to take the next logical step.`;
-}
-
-/**
- * Capture and Analyze Gemini's response
- * This is tricky since Gemini streams responses.
- */
-function captureResponse() {
-    // Wait for the response container to appear and finish
-    const responseObserver = new MutationObserver((mutations) => {
-        // Look for the last response element
-        const responses = document.querySelectorAll('.message-content'); // Selector might vary
-        if (responses.length > 0) {
-            const lastResponse = responses[responses.length - 1];
-            // Check if it's "done" (Gemini usually has a subtle UI change when finished)
-            // For now, we'll use a simpler heuristic or just wait
-        }
-    });
-
-    // In a real implementation, we might send the response back to a small "analysis" function
-    // or use chrome.storage to track the conversation.
+${mode.constraint}`;
 }
