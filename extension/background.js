@@ -39,6 +39,13 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
             return true;
         }
 
+        if (request.type === "SAVE_SETTINGS") {
+            chrome.storage.local.set({ 'ltc_settings': request.settings }, () => {
+                sendResponse({ success: true });
+            });
+            return true;
+        }
+
         if (request.type === "WIPE_MEMORY") {
             const emptyProfile = {
                 missed_points: [],

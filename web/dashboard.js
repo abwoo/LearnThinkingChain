@@ -22,7 +22,12 @@ const CloudHub = {
         },
         history: [],
         theme: 'dark',
-        protocols: {}
+        protocols: {},
+        settings: {
+            session_gap_minutes: 30
+        },
+        latestResponse: null,
+        responseHistory: []
     },
 
     async init() {
@@ -73,6 +78,9 @@ const CloudHub = {
                     this.state.profile = this.normalizeProfile(response.ltc_profile);
                     this.state.history = response.ltc_last_thinking_steps || [];
                     this.state.protocols = response.ltc_protocols || {};
+                    this.state.settings = this.normalizeSettings(response.ltc_settings);
+                    this.state.latestResponse = response.ltc_latest_response || null;
+                    this.state.responseHistory = response.ltc_response_history || [];
                     this.refreshProtocolEditor();
                     this.render();
                 }
@@ -144,9 +152,21 @@ const CloudHub = {
             this.state.profile.hidden_constraint_failures = 0;
             this.state.profile.learning_debt.hidden_constraint = 0;
             this.state.profile.learning_debt.by_topic = {};
+            this.state.profile.learning_debt.by_module = {};
+            this.state.profile.learning_debt.by_type = {};
             this.state.profile.learning_debt.sessions = [];
             this.sendToExtension({ type: "SAVE_PROFILE", profile: this.state.profile });
             this.renderLearningDebtDetails();
+        });
+
+        document.getElementById('save-settings')?.addEventListener('click', () => {
+            const input = document.getElementById('session-gap-input');
+            if (!input) return;
+            const minutes = Number.parseInt(input.value, 10);
+            const safeValue = Number.isFinite(minutes) ? Math.max(5, Math.min(180, minutes)) : 30;
+            this.state.settings.session_gap_minutes = safeValue;
+            this.sendToExtension({ type: "SAVE_SETTINGS", settings: this.state.settings });
+            input.value = safeValue;
         });
     },
 
@@ -315,6 +335,7 @@ ${rawInput}`;
         this.renderKnowledgeGaps();
         this.renderLearningDebtDetails();
         this.renderFrameworkNetwork();
+        this.renderResponsePanel();
         const modeEl = document.getElementById('active-mode');
         if (modeEl) modeEl.innerText = this.state.mode.toUpperCase();
         this.updatePreview(document.getElementById('preview-test-input')?.value || "");
@@ -435,24 +456,10 @@ ${rawInput}`;
         }).join('');
     },
     renderLearningDebtDetails() {
-        const topics = this.state.profile.learning_debt?.by_topic || {};
-        const container = document.getElementById('learning-debt-topics');
-        if (container) {
-            const keys = Object.keys(topics);
-            if (keys.length === 0) {
-                container.innerHTML = '<div class="dim">暂无主题统计</div>';
-            } else {
-                container.innerHTML = keys.map((topic) => {
-                    const item = topics[topic];
-                    return `
-                        <div class="debt-row">
-                            <span>${topic}</span>
-                            <span>${item.hidden_constraint_failures}/${item.total_prompts}</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-        }
+        this.renderDebtList('learning-debt-topics', this.state.profile.learning_debt?.by_topic, '暂无题目类型统计');
+        this.renderDebtList('learning-debt-modules', this.state.profile.learning_debt?.by_module, '暂无知识模块统计');
+        this.renderDebtList('learning-debt-types', this.state.profile.learning_debt?.by_type, '暂无题目类型统计');
+
         const sessionList = document.getElementById('learning-debt-sessions');
         if (sessionList) {
             const sessions = this.state.profile.learning_debt?.sessions || [];
@@ -462,13 +469,101 @@ ${rawInput}`;
                 sessionList.innerHTML = sessions.slice(0, 6).map((session) => {
                     return `
                         <div class="debt-row">
-                            <span>${session.topic || 'general'}</span>
+                            <span>${session.topic || 'general'} · ${session.module || 'general'}</span>
                             <span>${session.hidden_constraint_failures}/${session.total_prompts}</span>
                         </div>
                     `;
                 }).join('');
             }
         }
+        this.renderDebtCurve();
+    },
+    renderDebtList(elementId, data, emptyText) {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+        const entries = data ? Object.keys(data) : [];
+        if (!entries || entries.length === 0) {
+            container.innerHTML = `<div class="dim">${emptyText}</div>`;
+            return;
+        }
+        container.innerHTML = entries.map((key) => {
+            const item = data[key];
+            return `
+                <div class="debt-row">
+                    <span>${key}</span>
+                    <span>${item.hidden_constraint_failures}/${item.total_prompts}</span>
+                </div>
+            `;
+        }).join('');
+    },
+    renderDebtCurve() {
+        const svg = document.getElementById('learning-debt-curve');
+        if (!svg) return;
+        const sessions = (this.state.profile.learning_debt?.sessions || []).slice(0, 10).reverse();
+        if (sessions.length === 0) {
+            svg.innerHTML = '';
+            return;
+        }
+        const ns = 'http://www.w3.org/2000/svg';
+        const width = 300;
+        const height = 120;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.innerHTML = '';
+        const points = sessions.map((session, index) => {
+            const ratio = session.total_prompts ? (session.hidden_constraint_failures / session.total_prompts) : 0;
+            const x = 20 + (index * (width - 40) / Math.max(1, sessions.length - 1));
+            const y = height - 20 - ratio * (height - 40);
+            return `${x},${y}`;
+        }).join(' ');
+        const polyline = document.createElementNS(ns, 'polyline');
+        polyline.setAttribute('points', points);
+        polyline.setAttribute('class', 'curve-line');
+        svg.appendChild(polyline);
+    },
+    renderResponsePanel() {
+        const latestBox = document.getElementById('response-latest');
+        const historyBox = document.getElementById('response-history');
+        const analysisBox = document.getElementById('response-analysis');
+        const latest = this.state.latestResponse;
+        if (latestBox) {
+            latestBox.innerText = latest ? latest.text : '暂无 Gemini 回复';
+        }
+        if (historyBox) {
+            const items = this.state.responseHistory || [];
+            if (items.length === 0) {
+                historyBox.innerHTML = '<div class="dim">暂无历史</div>';
+            } else {
+                historyBox.innerHTML = items.slice(0, 6).map((item) => {
+                    return `
+                        <div class="response-item">
+                            <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
+                            <span>${(item.text || '').slice(0, 40)}...</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        if (analysisBox) {
+            const parsed = this.parseFramework(latest?.text || '');
+            analysisBox.innerHTML = `
+                <div class="analysis-row"><strong>Q1</strong><span>${parsed.q1 || '—'}</span></div>
+                <div class="analysis-row"><strong>Q2</strong><span>${parsed.q2 || '—'}</span></div>
+                <div class="analysis-row"><strong>Q3</strong><span>${parsed.q3 || '—'}</span></div>
+                <div class="analysis-row"><strong>Q4</strong><span>${parsed.q4 || '—'}</span></div>
+            `;
+        }
+    },
+    parseFramework(text) {
+        const result = { q1: '', q2: '', q3: '', q4: '' };
+        if (!text) return result;
+        const sections = text.split(/\n+/);
+        sections.forEach((line) => {
+            if (/Q1/i.test(line)) result.q1 = line.replace(/Q1[:：]?\s*/i, '').trim();
+            if (/Q2/i.test(line)) result.q2 = line.replace(/Q2[:：]?\s*/i, '').trim();
+            if (/Q3/i.test(line)) result.q3 = line.replace(/Q3[:：]?\s*/i, '').trim();
+            if (/Q4/i.test(line)) result.q4 = line.replace(/Q4[:：]?\s*/i, '').trim();
+        });
+        return result;
     },
     normalizeProfile(profile) {
         const base = {
@@ -480,12 +575,16 @@ ${rawInput}`;
             meta_cognitive_level: 1,
             hidden_constraint_failures: 0,
             thinking_trend_counts: {},
-            learning_debt: { hidden_constraint: 0 }
+            learning_debt: { hidden_constraint: 0, by_topic: {}, by_module: {}, by_type: {}, sessions: [] }
         };
         const merged = { ...base, ...(profile || {}) };
         merged.learning_debt = { ...base.learning_debt, ...(merged.learning_debt || {}) };
         merged.thinking_trend_counts = { ...base.thinking_trend_counts, ...(merged.thinking_trend_counts || {}) };
         return merged;
+    },
+    normalizeSettings(settings) {
+        const base = { session_gap_minutes: 30 };
+        return { ...base, ...(settings || {}) };
     },
     applyTheme(theme) {
         this.state.theme = theme;

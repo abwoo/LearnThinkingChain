@@ -92,11 +92,25 @@
                                 <span class="metric-value" id="thinking-trend">--</span>
                             </div>
                         </div>
+                        <div class="settings-row">
+                            <label class="metric-label" for="session-gap-input">会话阈值 (分钟)</label>
+                            <input id="session-gap-input" class="extension-input compact" type="number" min="5" max="180" value="30">
+                            <button class="btn-glass" id="save-settings">应用</button>
+                        </div>
                     </div>
 
                     <div class="bento-card medium glass">
                         <h3>框架网络</h3>
                         <svg id="framework-network" class="network-graph" viewBox="0 0 520 260" role="img" aria-label="框架网络图"></svg>
+                    </div>
+
+                    <div class="bento-card medium glass">
+                        <h3>Gemini 回复投射</h3>
+                        <div class="response-panel">
+                            <div class="response-latest" id="response-latest"></div>
+                            <div class="response-history" id="response-history"></div>
+                            <div class="response-analysis" id="response-analysis"></div>
+                        </div>
                     </div>
 
                     <div class="bento-card medium glass">
@@ -161,13 +175,27 @@
                         </div>
                         <div class="debt-panel">
                             <div>
-                                <div class="panel-title">按主题聚合</div>
+                                <div class="panel-title">按题目类型聚合</div>
                                 <div id="learning-debt-topics" class="debt-list"></div>
+                            </div>
+                            <div>
+                                <div class="panel-title">按知识模块聚合</div>
+                                <div id="learning-debt-modules" class="debt-list"></div>
+                            </div>
+                        </div>
+                        <div class="debt-panel">
+                            <div>
+                                <div class="panel-title">按题目类型聚合</div>
+                                <div id="learning-debt-types" class="debt-list"></div>
                             </div>
                             <div>
                                 <div class="panel-title">按会话聚合</div>
                                 <div id="learning-debt-sessions" class="debt-list"></div>
                             </div>
+                        </div>
+                        <div class="curve-panel">
+                            <div class="panel-title">Learning Debt 评分曲线</div>
+                            <svg id="learning-debt-curve" class="curve-graph" viewBox="0 0 300 120"></svg>
                         </div>
                         <div class="action-row">
                             <button class="btn-glass" id="inc-hidden-constraint">标记隐藏条件失误 +1</button>

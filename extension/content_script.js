@@ -18,6 +18,8 @@ let userProfile = {
     learning_debt: {
         hidden_constraint: 0,
         by_topic: {},
+        by_module: {},
+        by_type: {},
         sessions: []
     },
     last_session_id: "",
@@ -28,10 +30,19 @@ let lastWrappedAt = 0;
 let sessionState = {
     id: "",
     topic: "general",
+    module: "general",
+    problem_type: "general",
     started_at: 0,
     last_event_at: 0
 };
-const SESSION_GAP_MS = 30 * 60 * 1000;
+let settings = {
+    session_gap_minutes: 30
+};
+let responseState = {
+    last_text: "",
+    last_at: 0
+};
+let responseDebounce = null;
 
 // Q1-Q4 COGNITIVE FRAMEWORK DEFINITIONS
 const DEFAULT_PROTOCOLS = {
@@ -84,7 +95,13 @@ function normalizeProfile(profile) {
         meta_cognitive_level: 1,
         hidden_constraint_failures: 0,
         thinking_trend_counts: {},
-        learning_debt: { hidden_constraint: 0, by_topic: {}, sessions: [] },
+        learning_debt: {
+            hidden_constraint: 0,
+            by_topic: {},
+            by_module: {},
+            by_type: {},
+            sessions: []
+        },
         last_session_id: "",
         last_updated: Date.now()
     };
@@ -98,10 +115,19 @@ function normalizeSession(session) {
     const base = {
         id: "",
         topic: "general",
+        module: "general",
+        problem_type: "general",
         started_at: 0,
         last_event_at: 0
     };
     return { ...base, ...(session || {}) };
+}
+
+function normalizeSettings(incoming) {
+    const base = {
+        session_gap_minutes: 30
+    };
+    return { ...base, ...(incoming || {}) };
 }
 
 function normalizeProtocols(protocols) {
@@ -143,17 +169,19 @@ function rebuildModeSelect() {
 }
 
 // Load initial state
-chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode', 'ltc_protocols', 'ltc_session'], (result) => {
+chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode', 'ltc_protocols', 'ltc_session', 'ltc_settings'], (result) => {
     isActive = result.ltc_active || false;
     currentMode = result.ltc_mode || "novice";
     userProfile = normalizeProfile(result.ltc_profile);
     sessionState = normalizeSession(result.ltc_session);
+    settings = normalizeSettings(result.ltc_settings);
     if (!result.ltc_protocols) {
         chrome.storage.local.set({ 'ltc_protocols': DEFAULT_PROTOCOLS });
     }
     applyProtocols(result.ltc_protocols || DEFAULT_PROTOCOLS);
 
     injectFloatingHub();
+    startResponseObserver();
     console.log("[LTC] Initialized:", { isActive, currentMode });
 });
 
@@ -164,6 +192,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
     if (changes.ltc_session) {
         sessionState = normalizeSession(changes.ltc_session.newValue);
+    }
+    if (changes.ltc_settings) {
+        settings = normalizeSettings(changes.ltc_settings.newValue);
     }
     if (changes.ltc_protocols) {
         applyProtocols(changes.ltc_protocols.newValue);
@@ -497,7 +528,9 @@ function handleSubmission(inputArea) {
 function updateLearningDebt(rawInput) {
     const now = Date.now();
     const topic = detectTopic(rawInput);
-    ensureSession(topic, now);
+    const module = detectKnowledgeModule(rawInput);
+    const problemType = detectProblemType(rawInput);
+    ensureSession(topic, module, problemType, now);
 
     const hiddenConstraintSignals = [
         /隐藏条件/i,
@@ -518,9 +551,13 @@ function updateLearningDebt(rawInput) {
         userProfile.hidden_constraint_failures += 1;
         userProfile.learning_debt.hidden_constraint = userProfile.hidden_constraint_failures;
         incrementTopicDebt(topic, true);
+        incrementModuleDebt(module, true);
+        incrementTypeDebt(problemType, true);
         incrementSessionDebt(true);
     } else {
         incrementTopicDebt(topic, false);
+        incrementModuleDebt(module, false);
+        incrementTypeDebt(problemType, false);
         incrementSessionDebt(false);
     }
 
@@ -548,11 +585,34 @@ function detectTopic(rawInput) {
     return hit ? hit.label : 'general';
 }
 
-function ensureSession(topic, now) {
+function detectKnowledgeModule(rawInput) {
+    const moduleSignals = [
+        { key: 'physics', label: '物理', regex: /力学|电路|光学|热学|电磁|粒子/i },
+        { key: 'math', label: '数学', regex: /函数|极限|导数|积分|向量|矩阵|概率/i },
+        { key: 'cs', label: '计算机', regex: /算法|代码|复杂度|编译|数据库|网络/i },
+        { key: 'chem', label: '化学', regex: /摩尔|化学反应|氧化|还原|溶液|平衡/i }
+    ];
+    const hit = moduleSignals.find((signal) => signal.regex.test(rawInput));
+    return hit ? hit.label : 'general';
+}
+
+function detectProblemType(rawInput) {
+    const typeSignals = [
+        { key: 'concept', label: '概念理解', regex: /是什么|如何理解|概念|定义|原理/i },
+        { key: 'derivation', label: '推导证明', regex: /证明|推导|为什么成立|严密|推理/i },
+        { key: 'calculation', label: '计算求解', regex: /求解|计算|求值|结果是多少|数值/i },
+        { key: 'debug', label: '纠错', regex: /哪里错|不对|修正|纠错|不成立/i }
+    ];
+    const hit = typeSignals.find((signal) => signal.regex.test(rawInput));
+    return hit ? hit.label : 'general';
+}
+
+function ensureSession(topic, module, problemType, now) {
+    const sessionGapMs = Math.max(5, settings.session_gap_minutes || 30) * 60 * 1000;
     const isNew =
         !sessionState.id ||
         !sessionState.last_event_at ||
-        (now - sessionState.last_event_at > SESSION_GAP_MS) ||
+        (now - sessionState.last_event_at > sessionGapMs) ||
         (sessionState.topic && sessionState.topic !== topic);
 
     if (isNew) {
@@ -560,6 +620,8 @@ function ensureSession(topic, now) {
         sessionState = {
             id: sessionId,
             topic,
+            module,
+            problem_type: problemType,
             started_at: now,
             last_event_at: now
         };
@@ -567,6 +629,8 @@ function ensureSession(topic, now) {
         userProfile.learning_debt.sessions.unshift({
             id: sessionId,
             topic,
+            module,
+            problem_type: problemType,
             started_at: now,
             last_event_at: now,
             total_prompts: 0,
@@ -592,12 +656,96 @@ function incrementTopicDebt(topic, hitHidden) {
     if (hitHidden) topicStats.hidden_constraint_failures += 1;
 }
 
+function incrementModuleDebt(module, hitHidden) {
+    if (!userProfile.learning_debt.by_module[module]) {
+        userProfile.learning_debt.by_module[module] = {
+            total_prompts: 0,
+            hidden_constraint_failures: 0
+        };
+    }
+    const moduleStats = userProfile.learning_debt.by_module[module];
+    moduleStats.total_prompts += 1;
+    if (hitHidden) moduleStats.hidden_constraint_failures += 1;
+}
+
+function incrementTypeDebt(problemType, hitHidden) {
+    if (!userProfile.learning_debt.by_type[problemType]) {
+        userProfile.learning_debt.by_type[problemType] = {
+            total_prompts: 0,
+            hidden_constraint_failures: 0
+        };
+    }
+    const typeStats = userProfile.learning_debt.by_type[problemType];
+    typeStats.total_prompts += 1;
+    if (hitHidden) typeStats.hidden_constraint_failures += 1;
+}
+
 function incrementSessionDebt(hitHidden) {
     const session = userProfile.learning_debt.sessions.find((s) => s.id === sessionState.id);
     if (!session) return;
     session.total_prompts += 1;
     session.last_event_at = sessionState.last_event_at;
     if (hitHidden) session.hidden_constraint_failures += 1;
+}
+
+function startResponseObserver() {
+    if (responseState.observer) return;
+    responseState.observer = new MutationObserver(() => {
+        if (responseDebounce) clearTimeout(responseDebounce);
+        responseDebounce = setTimeout(() => {
+            captureLatestResponse();
+        }, 600);
+    });
+    responseState.observer.observe(document.body, { childList: true, subtree: true });
+    captureLatestResponse();
+}
+
+function captureLatestResponse() {
+    const responseText = findLatestResponseText();
+    if (!responseText || responseText.length < 10) return;
+    const now = Date.now();
+    if (responseText === responseState.last_text && now - responseState.last_at < 2000) return;
+    responseState.last_text = responseText;
+    responseState.last_at = now;
+    const latest = {
+        text: responseText,
+        mode: currentMode,
+        timestamp: now,
+        topic: sessionState.topic,
+        module: sessionState.module,
+        problem_type: sessionState.problem_type
+    };
+    chrome.storage.local.get(['ltc_response_history'], (result) => {
+        const history = Array.isArray(result.ltc_response_history) ? result.ltc_response_history : [];
+        const next = [latest, ...history].slice(0, 12);
+        chrome.storage.local.set({
+            ltc_latest_response: latest,
+            ltc_response_history: next
+        });
+    });
+}
+
+function findLatestResponseText() {
+    const selectors = [
+        'div.markdown',
+        '.markdown',
+        '[data-testid="model-response"]',
+        '[data-response]',
+        '.model-response',
+        '.response',
+        'article',
+        'main div[role="article"]'
+    ];
+    let candidates = [];
+    selectors.forEach((selector) => {
+        candidates = candidates.concat(Array.from(document.querySelectorAll(selector)));
+    });
+    if (candidates.length === 0) return "";
+    const texts = candidates
+        .map((el) => (el.innerText || '').trim())
+        .filter((text) => text.length > 0);
+    if (texts.length === 0) return "";
+    return texts[texts.length - 1];
 }
 
 function generateCognitivePrompt(rawInput) {
