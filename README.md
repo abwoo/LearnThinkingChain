@@ -33,6 +33,7 @@ git clone https://github.com/abwoo/LearnThinkingChain.git
 cd LearnThinkingChain
 npm install
 npm run build
+npm run build:web
 ```
 
 ### Step 2: Load Extension in Chrome
@@ -41,6 +42,14 @@ npm run build
 2. Enable **"Developer mode"** (toggle in top-right)
 3. Click **"Load unpacked"**
 4. Select the `dist/extension` folder
+
+### Optional: Build Dashboard
+
+```bash
+npm run build:web
+```
+
+Dashboard output will be in `dist/web`.
 
 ### Step 3: Activate in Gemini
 

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --config apps/extension/vite.config.ts",
     "build": "vite build --config apps/extension/vite.config.ts",
+    "build:web": "vite build --config apps/web/vite.config.ts",
     "build:release": "npm run build && npm run package",
     "package": "node scripts/package-release.js",
     "type-check": "tsc --noEmit",
