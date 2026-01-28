@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LT Chain Cloud Hub</title>
     <link rel="stylesheet" href="dashboard.css">
     <link
@@ -30,7 +31,7 @@
                     <span class="nav-icon">⚒</span> 框架工坊
                 </div>
                 <div class="nav-link" data-view="memory">
-                    <span class="nav-icon">☁</span> 原始记忆
+                    <span class="nav-icon">☁</span> 认知档案
                 </div>
             </nav>
 
@@ -46,12 +47,12 @@
             <section id="control-view" class="view active">
                 <div class="view-header">
                     <h2>控制中心 <span class="dim">Control Center</span></h2>
-                    <div class="sync-controls" style="display:flex; align-items:center; gap:16px;">
+                    <div class="sync-controls">
                         <div class="theme-toggle" id="theme-toggle" title="Switch Theme">
                             🌙
                         </div>
-                        <div style="height:20px; width:1px; background:var(--glass-border);"></div>
-                        <input type="text" id="extension-id-input" class="extension-input" placeholder="Enter Plugin ID">
+                        <div class="sync-divider"></div>
+                        <input type="text" id="extension-id-input" class="extension-input" placeholder="Enter Plugin ID" aria-label="Extension ID">
                         <button class="btn-glass" id="reset-profile">RESET CORE</button>
                     </div>
                 </div>
@@ -60,7 +61,7 @@
                     <div class="bento-card large glass">
                         <h3>大脑仿真预览</h3>
                         <div class="preview-stage">
-                            <textarea id="preview-test-input" placeholder="输入测试问题..."></textarea>
+                            <textarea id="preview-test-input" placeholder="输入测试问题..." aria-label="测试输入"></textarea>
                             <div class="code-wrap">
                                 <pre id="current-protocol-code" class="mono"></pre>
                             </div>
@@ -68,6 +69,37 @@
                     </div>
 
                     <div class="bento-card small glass">
+                        <h3>系统状态</h3>
+                        <div class="metric-grid">
+                            <div class="metric-card">
+                                <span class="metric-label">ACTIVE</span>
+                                <span class="metric-value" id="active-status">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">MODE</span>
+                                <span class="metric-value" id="active-mode">NOVICE</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">HIDDEN FAILS</span>
+                                <span class="metric-value hidden-constraint-count">0</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">LEARNING DEBT</span>
+                                <span class="metric-value learning-debt-count">0</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">TREND</span>
+                                <span class="metric-value" id="thinking-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bento-card medium glass">
+                        <h3>框架网络</h3>
+                        <div id="framework-network" class="network-stack"></div>
+                    </div>
+
+                    <div class="bento-card medium glass">
                         <h3>实时思维脉冲</h3>
                         <div id="live-chain" class="chain-stream"></div>
                     </div>
@@ -81,9 +113,16 @@
                 </div>
                 <div class="workshop-grid glass">
                     <div class="protocol-editor">
-                        <h3>协议定义 (JSON)</h3>
-                        <textarea id="protocol-json-editor" class="mono"></textarea>
+                        <div class="editor-header">
+                            <h3>协议定义 (JSON)</h3>
+                            <span class="editor-status" id="protocol-save-status">未同步</span>
+                        </div>
+                        <textarea id="protocol-json-editor" class="mono" aria-label="协议定义"></textarea>
                         <button class="btn-primary" id="save-protocols">应用新协议</button>
+                    </div>
+                    <div class="protocol-matrix">
+                        <h3>模式矩阵</h3>
+                        <div id="protocol-matrix" class="matrix-grid"></div>
                     </div>
                 </div>
             </section>
@@ -91,14 +130,39 @@
             <!-- MEMORY VIEW -->
             <section id="memory-view" class="view">
                 <div class="view-header">
-                    <h2>原始记忆 <span class="dim">Raw Memory</span></h2>
+                    <h2>认知档案 <span class="dim">Cognitive Profile</span></h2>
                 </div>
-                <div class="memory-grid glass">
-                    <div class="memory-input">
-                        <input type="text" id="new-gap-input" placeholder="输入新的知识锚点...">
-                        <button id="add-gap-btn">注入记忆</button>
+                <div class="memory-grid">
+                    <div class="glass">
+                        <h3>知识锚点</h3>
+                        <div class="memory-input">
+                            <input type="text" id="new-gap-input" placeholder="输入新的知识锚点..." aria-label="知识锚点">
+                            <button id="add-gap-btn">注入记忆</button>
+                        </div>
+                        <ul id="gaps-list" class="tag-cloud"></ul>
+                        <div class="tag-row" id="knowledge-gaps"></div>
                     </div>
-                    <ul id="gaps-list" class="tag-cloud"></ul>
+                    <div class="glass">
+                        <h3>思维方式</h3>
+                        <div id="thinking-styles" class="tag-row"></div>
+                    </div>
+                    <div class="glass">
+                        <h3>Learning Debt</h3>
+                        <div class="metric-grid compact">
+                            <div class="metric-card">
+                                <span class="metric-label">HIDDEN FAILS</span>
+                                <span class="metric-value hidden-constraint-count">0</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">DEBT</span>
+                                <span class="metric-value learning-debt-count">0</span>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                            <button class="btn-glass" id="inc-hidden-constraint">标记隐藏条件失误 +1</button>
+                            <button class="btn-glass" id="reset-learning-debt">清零 Learning Debt</button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>

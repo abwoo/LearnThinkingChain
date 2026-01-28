@@ -32,8 +32,25 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
             return true;
         }
 
+        if (request.type === "SAVE_PROTOCOLS") {
+            chrome.storage.local.set({ 'ltc_protocols': request.protocols }, () => {
+                sendResponse({ success: true });
+            });
+            return true;
+        }
+
         if (request.type === "WIPE_MEMORY") {
-            const emptyProfile = { missed_points: [], thinking_styles: [], trial_error_history: [], last_updated: Date.now() };
+            const emptyProfile = {
+                missed_points: [],
+                thinking_styles: [],
+                trial_error_history: [],
+                knowledge_gaps: [],
+                thinking_trend: "",
+                meta_cognitive_level: 1,
+                hidden_constraint_failures: 0,
+                learning_debt: { hidden_constraint: 0 },
+                last_updated: Date.now()
+            };
             chrome.storage.local.set({ 'ltc_profile': emptyProfile }, () => {
                 sendResponse({ success: true, profile: emptyProfile });
             });

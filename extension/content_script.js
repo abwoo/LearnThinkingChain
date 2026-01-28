@@ -14,6 +14,7 @@ let userProfile = {
     thinking_trend: "",
     meta_cognitive_level: 1,
     hidden_constraint_failures: 0,
+    thinking_trend_counts: {},
     learning_debt: {
         hidden_constraint: 0
     },
@@ -23,7 +24,7 @@ let lastWrappedInput = "";
 let lastWrappedAt = 0;
 
 // Q1-Q4 COGNITIVE FRAMEWORK DEFINITIONS
-const MODES = {
+const DEFAULT_PROTOCOLS = {
     novice: {
         name: "Novice Backtracker",
         identity: "Peer Learner",
@@ -61,6 +62,7 @@ const MODES = {
         q4_handover: "Ask the user to map one element of the analogy back to the real variables."
     }
 };
+let MODES = { ...DEFAULT_PROTOCOLS };
 
 function normalizeProfile(profile) {
     const base = {
@@ -71,22 +73,81 @@ function normalizeProfile(profile) {
         thinking_trend: "",
         meta_cognitive_level: 1,
         hidden_constraint_failures: 0,
+        thinking_trend_counts: {},
         learning_debt: { hidden_constraint: 0 },
         last_updated: Date.now()
     };
     const merged = { ...base, ...(profile || {}) };
     merged.learning_debt = { ...base.learning_debt, ...(merged.learning_debt || {}) };
+    merged.thinking_trend_counts = { ...base.thinking_trend_counts, ...(merged.thinking_trend_counts || {}) };
     return merged;
 }
 
+function normalizeProtocols(protocols) {
+    if (!protocols || typeof protocols !== 'object') return { ...DEFAULT_PROTOCOLS };
+    const normalized = { ...DEFAULT_PROTOCOLS };
+    Object.keys(protocols).forEach((key) => {
+        const incoming = protocols[key];
+        if (!incoming || typeof incoming !== 'object') return;
+        normalized[key] = {
+            ...DEFAULT_PROTOCOLS[key],
+            ...incoming
+        };
+    });
+    return normalized;
+}
+
+function applyProtocols(protocols) {
+    MODES = normalizeProtocols(protocols);
+    rebuildModeSelect();
+    updateFrameworkPreview();
+}
+
+function rebuildModeSelect() {
+    const select = document.getElementById('ltc-mode-select');
+    if (!select) return;
+    select.innerHTML = '';
+    Object.keys(MODES).forEach((key) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = MODES[key].name || key;
+        if (currentMode === key) option.selected = true;
+        select.appendChild(option);
+    });
+    if (!MODES[currentMode]) {
+        currentMode = Object.keys(MODES)[0] || 'novice';
+        chrome.storage.local.set({ 'ltc_mode': currentMode });
+        select.value = currentMode;
+    }
+}
+
 // Load initial state
-chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode'], (result) => {
+chrome.storage.local.get(['ltc_active', 'ltc_profile', 'ltc_mode', 'ltc_protocols'], (result) => {
     isActive = result.ltc_active || false;
     currentMode = result.ltc_mode || "novice";
     userProfile = normalizeProfile(result.ltc_profile);
+    if (!result.ltc_protocols) {
+        chrome.storage.local.set({ 'ltc_protocols': DEFAULT_PROTOCOLS });
+    }
+    applyProtocols(result.ltc_protocols || DEFAULT_PROTOCOLS);
 
     injectFloatingHub();
     console.log("[LTC] Initialized:", { isActive, currentMode });
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    if (changes.ltc_profile) {
+        userProfile = normalizeProfile(changes.ltc_profile.newValue);
+    }
+    if (changes.ltc_protocols) {
+        applyProtocols(changes.ltc_protocols.newValue);
+    }
+    if (changes.ltc_mode) {
+        currentMode = changes.ltc_mode.newValue || currentMode;
+        rebuildModeSelect();
+        updateFrameworkPreview();
+    }
 });
 
 /**
@@ -380,6 +441,7 @@ function handleSubmission(inputArea) {
     const now = Date.now();
     if (rawInput === lastWrappedInput && now - lastWrappedAt < 1200) return; // Prevent double wrap on click+enter
 
+    updateLearningDebt(rawInput);
     userProfile.last_updated = Date.now();
     chrome.storage.local.set({ 'ltc_profile': userProfile });
 
@@ -404,6 +466,40 @@ function handleSubmission(inputArea) {
             { title: "Q3: 深度回溯", desc: "触发第一性原理 (First Principle) 纠偏" },
             { title: "Q4: 认知交接", desc: "生成开放式引导追问" }
         ]
+    });
+}
+
+function updateLearningDebt(rawInput) {
+    const hiddenConstraintSignals = [
+        /隐藏条件/i,
+        /约束/i,
+        /边界条件/i,
+        /条件不够/i,
+        /为什么.*不对/i,
+        /哪里错/i,
+        /不成立/i,
+        /矛盾/i,
+        /算不出/i,
+        /不收敛/i,
+        /不行/i,
+        /失败/i
+    ];
+    const hitHiddenConstraint = hiddenConstraintSignals.some((re) => re.test(rawInput));
+    if (hitHiddenConstraint) {
+        userProfile.hidden_constraint_failures += 1;
+        userProfile.learning_debt.hidden_constraint = userProfile.hidden_constraint_failures;
+    }
+
+    const trendSignals = [
+        { key: 'formula_overuse', regex: /公式|代入|计算|推导|展开|求解/i, label: 'over-relying on formulas' },
+        { key: 'visual_gap', regex: /图像|直观|几何|画图/i, label: 'weak visual intuition' },
+        { key: 'assumption_blind', regex: /假设|边界|初始条件|约束/i, label: 'missing boundary assumptions' }
+    ];
+    trendSignals.forEach((signal) => {
+        if (signal.regex.test(rawInput)) {
+            userProfile.thinking_trend_counts[signal.key] = (userProfile.thinking_trend_counts[signal.key] || 0) + 1;
+            userProfile.thinking_trend = signal.label;
+        }
     });
 }
 

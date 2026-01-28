@@ -156,6 +156,18 @@ body.glass-master.theme-light {
     gap: 18px;
 }
 
+.sync-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.sync-divider {
+    height: 20px;
+    width: 1px;
+    background: var(--glass-border);
+}
+
 .view-header h2 {
     font-size: 32px;
     font-weight: 900;
@@ -175,6 +187,19 @@ body.glass-master.theme-light {
     grid-template-columns: 2fr 1fr;
     gap: 18px;
     flex: 1;
+    grid-auto-rows: minmax(180px, auto);
+}
+
+.bento-card.large {
+    grid-row: span 2;
+}
+
+.bento-card.medium {
+    min-height: 220px;
+}
+
+.bento-card.small {
+    min-height: 220px;
 }
 
 .glass {
@@ -225,12 +250,125 @@ textarea {
     border: 1px solid var(--code-border);
 }
 
+/* Workshop */
+.workshop-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    height: calc(100% - 20px);
+}
+
+.protocol-editor {
+    display: flex;
+    flex-direction: column;
+}
+
+.protocol-editor textarea {
+    height: 320px;
+    margin-bottom: 12px;
+}
+
+/* Memory */
+.memory-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+/* Metrics */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.metric-grid.compact {
+    margin-top: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: var(--text-low);
+    letter-spacing: 0.6px;
+}
+
+.metric-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-high);
+}
+
+.status-on {
+    color: #22c55e;
+}
+
+.status-off {
+    color: #f97316;
+}
+
+/* Network */
+.network-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.network-node {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+
+.node-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.node-desc {
+    font-size: 12px;
+    color: var(--text-low);
+    line-height: 1.4;
+}
+
+.network-connector {
+    text-align: center;
+    color: var(--text-low);
+}
+
 /* Workshop & Tags */
 .tag-cloud {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     list-style: none;
+}
+
+.tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.tag-chip {
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    font-size: 12px;
 }
 
 .tag-interactive {
@@ -261,6 +399,62 @@ textarea {
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
+}
+
+.action-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.editor-status {
+    font-size: 12px;
+    color: var(--text-low);
+}
+
+.protocol-matrix {
+    margin-top: 24px;
+}
+
+.matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.matrix-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.matrix-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.matrix-sub {
+    font-size: 11px;
+    color: var(--text-low);
+    margin-bottom: 8px;
+}
+
+.matrix-card ul {
+    padding-left: 18px;
+    color: var(--text-low);
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 /* Inputs */
