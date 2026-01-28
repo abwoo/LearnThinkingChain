@@ -33,6 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('open-dashboard').addEventListener('click', () => {
-        chrome.tabs.create({ url: 'https://abwoo.github.io/LearnThinkingChain/' });
+        chrome.tabs.create({ url: 'https://abwoo.github.io/LearnThinkingChain/?force=refresh' });
     });
 });
