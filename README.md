@@ -32,7 +32,7 @@
 git clone https://github.com/abwoo/LearnThinkingChain.git
 cd LearnThinkingChain
 npm install
-npm run build
+npm run build:extension
 npm run build:web
 ```
 
