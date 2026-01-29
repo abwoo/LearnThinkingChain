@@ -48,8 +48,7 @@ export function DashboardApp() {
     queryFn: async () => {
       if (!extensionId) return [];
       const syncEngine = getSyncEngine();
-      const supabase = (syncEngine as any).supabase; // 访问内部 supabase 实例
-      return await supabase.getRecentEvents(extensionId, 50);
+      return await syncEngine.getRecentEvents(50);
     },
     enabled: isConnected && !!extensionId,
     refetchInterval: 5000 // 每 5 秒刷新

@@ -36,6 +36,7 @@ export class RequestInterceptor {
   private pendingValue: string | null = null;
   private failureCount = 0;
   private readonly MAX_FAILURES = 3;
+  private observer: MutationObserver | null = null;
 
   // Event handlers (bound methods)
   private handleKeydownCapture: (e: Event) => void;
@@ -66,6 +67,7 @@ export class RequestInterceptor {
     document.addEventListener('keydown', this.handleKeydownCapture, true);
     document.addEventListener('click', this.handleSubmitCapture, true);
     document.addEventListener('submit', this.handleSubmitCapture, true);
+    document.addEventListener('input', this.handleInputCapture, true);
     
     // Monitor for input element changes
     this.observeInputElement();
@@ -80,10 +82,13 @@ export class RequestInterceptor {
     document.removeEventListener('keydown', this.handleKeydownCapture, true);
     document.removeEventListener('click', this.handleSubmitCapture, true);
     document.removeEventListener('submit', this.handleSubmitCapture, true);
+    document.removeEventListener('input', this.handleInputCapture, true);
     
     this.inputElement = null;
     this.isProcessing = false;
     this.pendingValue = null;
+    this.observer?.disconnect();
+    this.observer = null;
   }
 
   /**
@@ -337,7 +342,9 @@ export class RequestInterceptor {
    * Observe for input element changes (MutationObserver)
    */
   private observeInputElement(): void {
-    const observer = new MutationObserver(() => {
+    this.observer?.disconnect();
+    this.inputElement = this.findInputElement();
+    this.observer = new MutationObserver(() => {
       if (!this.inputElement || !document.contains(this.inputElement)) {
         this.inputElement = this.findInputElement();
         if (this.inputElement) {
@@ -346,7 +353,7 @@ export class RequestInterceptor {
       }
     });
 
-    observer.observe(document.body, {
+    this.observer.observe(document.body, {
       childList: true,
       subtree: true
     });

@@ -4,9 +4,10 @@
  * React component for Shadow DOM UI
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ProtocolMap } from '../../types/Protocols';
+import type { FrameworkEntry } from '../../core/services/FrameworkService';
 
 export interface FloatingHubProps {
   isActive: boolean;
@@ -72,50 +73,67 @@ export class FloatingHub {
 }
 
 const FloatingHubComponent: React.FC<FloatingHubProps> = ({
-  isActive,
-  currentMode,
-  modes,
-  protocols: propProtocols,
-  onToggleActive,
-  onModeChange,
+  isActive: _isActive,
+  currentMode: _currentMode,
+  modes: _modes,
+  protocols: _protocols,
+  onToggleActive: _onToggleActive,
+  onModeChange: _onModeChange,
   status
 }) => {
-  const [expanded, setExpanded] = useState(true);
-  const [history, setHistory] = useState<Array<{ title: string; desc: string }>>([]);
-  const [protocols, setProtocols] = useState<Record<string, Record<string, string>>>({});
-  const [profileTrend, setProfileTrend] = useState<string>('');
+  const [expanded] = useState(true);
+  const [frameworks, setFrameworks] = useState<FrameworkEntry[]>([]);
+  const hubRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 20, y: 20 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const normalizeFrameworks = (items: unknown): FrameworkEntry[] => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const data = item as Partial<FrameworkEntry>;
+        if (typeof data.name !== 'string') return null;
+        return {
+          id: typeof data.id === 'string' ? data.id : `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: data.name,
+          created_at: typeof data.created_at === 'number' ? data.created_at : Date.now()
+        };
+      })
+      .filter((item): item is FrameworkEntry => Boolean(item));
+  };
 
   useEffect(() => {
     const load = async () => {
       const data = await chrome.storage.local.get([
-        'ltc_last_thinking_steps',
-        'ltc_protocols',
-        'ltc_profile'
+        'ltc_frameworks',
+        'ltc_hub_position'
       ]);
-      const steps = Array.isArray(data.ltc_last_thinking_steps) ? data.ltc_last_thinking_steps : [];
-      setHistory(steps);
-      const storedProtocols = typeof data.ltc_protocols === 'object' && data.ltc_protocols ? data.ltc_protocols : {};
-      setProtocols(storedProtocols as Record<string, Record<string, string>>);
-      const trend = data.ltc_profile?.thinking_trend;
-      setProfileTrend(typeof trend === 'string' ? trend : '');
+      setFrameworks(normalizeFrameworks(data.ltc_frameworks));
+      const pos = data.ltc_hub_position;
+      if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+        setPosition({ x: pos.x, y: pos.y });
+      } else {
+        requestAnimationFrame(() => {
+          const rect = hubRef.current?.getBoundingClientRect();
+          const width = rect?.width ?? 320;
+          const x = Math.max(20, window.innerWidth - width - 20);
+          setPosition({ x, y: 20 });
+        });
+      }
     };
     load();
 
     const onChanged = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes.ltc_last_thinking_steps) {
-        const steps = changes.ltc_last_thinking_steps.newValue;
-        setHistory(Array.isArray(steps) ? steps : []);
+      if (changes.ltc_frameworks) {
+        setFrameworks(normalizeFrameworks(changes.ltc_frameworks.newValue));
       }
-      if (changes.ltc_protocols) {
-        const next = changes.ltc_protocols.newValue;
-        setProtocols(typeof next === 'object' && next ? next : {});
-      }
-      if (changes.ltc_profile) {
-        const trend = changes.ltc_profile.newValue?.thinking_trend;
-        setProfileTrend(typeof trend === 'string' ? trend : '');
+      if (changes.ltc_hub_position) {
+        const pos = changes.ltc_hub_position.newValue;
+        if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+          setPosition({ x: pos.x, y: pos.y });
+        }
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -129,16 +147,28 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
 
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
-      }));
+      setPosition(prev => {
+        const rect = hubRef.current?.getBoundingClientRect();
+        const width = rect?.width ?? 320;
+        const height = rect?.height ?? 140;
+        const maxX = Math.max(0, window.innerWidth - width);
+        const maxY = Math.max(0, window.innerHeight - height);
+        const nextX = Math.min(maxX, Math.max(0, prev.x + deltaX));
+        const nextY = Math.min(maxY, Math.max(0, prev.y + deltaY));
+        return { x: nextX, y: nextY };
+      });
 
       setDragStart({ x: e.clientX, y: e.clientY });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      chrome.storage.local.set({
+        ltc_hub_position: {
+          x: position.x,
+          y: position.y
+        }
+      });
     };
 
     if (isDragging) {
@@ -150,120 +180,51 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart]);
+  }, [isDragging, dragStart, position.x, position.y]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
   };
 
-  const containerStyle: React.CSSProperties = {
-    transform: position.x || position.y
-      ? `translate(${position.x}px, ${position.y}px)`
-      : undefined
-  };
+  useEffect(() => {
+    if (!hubRef.current) return;
+    hubRef.current.style.left = `${position.x}px`;
+    hubRef.current.style.top = `${position.y}px`;
+    hubRef.current.style.right = 'auto';
+  }, [position.x, position.y]);
 
-  const protocolPreview = useMemo(() => {
-    const source = propProtocols ?? protocols;
-    const p = source[currentMode] || {};
-    const q1 = p.q1_blind_spot || p.q1 || '—';
-    const q2 = p.q2_entropy || p.q2 || '—';
-    const q3 = p.q3_backtrack || p.q3 || '—';
-    const q4 = p.q4_handover || p.q4 || '—';
-    return [
-      `Mode: ${currentMode}`,
-      `Q1: ${q1}`,
-      `Q2: ${q2}`,
-      `Q3: ${q3}`,
-      `Q4: ${q4}`
-    ].join('\n');
-  }, [protocols, propProtocols, currentMode]);
+  const frameworkPreview = useMemo(() => {
+    if (!frameworks.length) return '尚未添加框架';
+    return frameworks.map((item) => `• ${item.name}`).join('\n');
+  }, [frameworks]);
 
   return (
-    <div className="ltc-hub" style={containerStyle}>
+    <div className="ltc-hub" ref={hubRef}>
       <div
         className="ltc-header"
         onMouseDown={handleMouseDown}
       >
         <div className="ltc-brand">
-          <span style={{ color: 'var(--accent-blue)', fontSize: '14px' }}>⚡</span>
+          <span className="ltc-icon">⚡</span>
           THINKING CHAIN
         </div>
-        <div style={{ width: '30px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px' }} />
+        <div className="ltc-drag-handle" />
       </div>
 
       <div className="ltc-controls">
-        <div className="ltc-toggle-group">
-          <label className="ltc-switch">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => onToggleActive(e.target.checked)}
-              aria-label="Enable LearnThinkingChain"
-            />
-            <span className="ltc-slider" />
-          </label>
-          <select
-            className="ltc-select"
-            value={currentMode}
-            onChange={(e) => onModeChange(e.target.value)}
-            disabled={modes.length === 0}
-            aria-label="Select cognitive mode"
-          >
-            {modes.map(mode => (
-              <option key={mode.id} value={mode.id}>
-                {mode.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {status && (
           <div className={`ltc-status ${status.type}`}>
             {status.message}
           </div>
         )}
-
-        {profileTrend && (
-          <div className="ltc-trend">
-            {profileTrend}
-          </div>
-        )}
       </div>
-
-      <button
-        className="ltc-expand-btn"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {expanded ? '▼ Collapse Panel' : '▲ Expand Panel'}
-      </button>
 
       {expanded && (
         <div className="ltc-panel">
-          <div className="ltc-section-title">ACTIVE PROTOCOL (Q1-Q4)</div>
-          <pre className="ltc-protocol">{protocolPreview}</pre>
-
-          <div className="ltc-section-title">THINKING PATH MAP</div>
-          <div className="ltc-path-map">
-            <span>Start</span>
-            <span className="ltc-path-arrow">→</span>
-            <span>Wrong Turn</span>
-            <span className="ltc-path-arrow">→</span>
-            <span>Insight</span>
-            <span className="ltc-path-arrow">→</span>
-            <span>Target</span>
-          </div>
-
-          <div className="ltc-section-title">SESSION HISTORY</div>
-          <div className="ltc-history-list">
-            {history.length === 0 && <div className="ltc-empty">No history yet</div>}
-            {history.map((item, index) => (
-              <div key={`${item.title}-${index}`} className="ltc-history-item">
-                <strong>{item.title}</strong>
-                <span>{item.desc}</span>
-              </div>
-            ))}
-          </div>
+          <div className="ltc-section-title">我的框架</div>
+          <pre className="ltc-protocol">{frameworkPreview}</pre>
+          <div className="ltc-empty">在看板中新增/删除框架</div>
         </div>
       )}
     </div>

@@ -410,6 +410,14 @@ textarea {
     gap: 8px;
 }
 
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
 .btn-small {
     padding: 6px 10px;
     font-size: 11px;
@@ -843,4 +851,76 @@ textarea {
 
 .view.active {
     animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Framework-only dashboard */
+.framework-body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0b1220;
+    color: #e6eefc;
+    --input-bg: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --text-high: #e6eefc;
+}
+
+.framework-app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.framework-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 16px;
+}
+
+.framework-header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.framework-connection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.framework-panel {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.framework-form {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.framework-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.framework-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }

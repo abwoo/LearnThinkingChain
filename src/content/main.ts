@@ -27,6 +27,8 @@ let circuitBreaker: CircuitBreaker | null = null;
 let shadowHost: ShadowHost | null = null;
 let floatingHub: FloatingHub | null = null;
 let errorBoundary: ErrorBoundary | null = null;
+let uiObserver: MutationObserver | null = null;
+let uiReattachTimer: number | null = null;
 
 // Initialize
 async function initialize() {
@@ -69,6 +71,7 @@ async function initialize() {
     // Initialize floating hub
     floatingHub = new FloatingHub(shadowRoot);
     updateFloatingHub();
+    startUiObserver();
 
     // Initialize request interceptor
     interceptor = new RequestInterceptor({
@@ -127,9 +130,40 @@ async function initialize() {
         }
         updateFloatingHub();
       }
+
+      if (changes.ltc_last_thinking_steps) {
+        updateFloatingHub();
+      }
+
+      if (changes.ltc_frameworks) {
+        updateFloatingHub();
+      }
     });
 
     defaultLogger.info('Content script initialized');
+  });
+}
+
+function startUiObserver(): void {
+  if (uiObserver) return;
+  uiObserver = new MutationObserver(() => {
+    if (uiReattachTimer !== null) return;
+    uiReattachTimer = window.setTimeout(() => {
+      uiReattachTimer = null;
+      const host = document.getElementById('ltc-shadow-host');
+      if (!host || !host.isConnected) {
+        defaultLogger.warn('ShadowHost missing, re-mounting UI');
+        shadowHost = new ShadowHost({ id: 'ltc-shadow-host' });
+        const root = shadowHost.mount();
+        floatingHub = new FloatingHub(root);
+        updateFloatingHub();
+      }
+    }, 60);
+  });
+
+  uiObserver.observe(document.body, {
+    childList: true,
+    subtree: true
   });
 }
 
@@ -180,19 +214,14 @@ async function handleInterception(
 
     await CognitiveProfileService.save(profile!);
 
-    // Store lightweight session history for hub UI
-    const historyData = await chrome.storage.local.get('ltc_last_thinking_steps');
-    const history = Array.isArray(historyData.ltc_last_thinking_steps)
-      ? historyData.ltc_last_thinking_steps
-      : [];
     const protocolName = protocol.name || currentMode;
     const bridges = processed.logicBridges?.slice(0, 3).join(', ') || 'No bridges';
     const nextEntry = {
       title: `Mode: ${protocolName}`,
-      desc: `Bridges: ${bridges}`
+      desc: `Bridges: ${bridges}`,
+      created_at: Date.now()
     };
-    const nextHistory = [nextEntry, ...history].slice(0, 12);
-    await chrome.storage.local.set({ ltc_last_thinking_steps: nextHistory });
+    chrome.runtime.sendMessage({ type: 'HISTORY_APPEND', historyEntry: nextEntry });
 
     return processed.wrappedPrompt;
   }) ?? null;
