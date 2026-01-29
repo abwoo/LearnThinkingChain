@@ -209,17 +209,6 @@ export class SyncEngine {
   }
 
   /**
-   * 获取最近的思考事件
-   */
-  async getRecentEvents(limit: number = 50): Promise<ThinkingEvent[]> {
-    if (!this.config) {
-      console.error('SyncEngine not initialized');
-      return [];
-    }
-    return this.supabase.getRecentEvents(this.config.extensionId, limit);
-  }
-
-  /**
    * 获取指定类别的技能
    */
   getSkillsByCategory(category: 'hunter' | 'builder' | 'sage' | 'berserker'): Skill[] {

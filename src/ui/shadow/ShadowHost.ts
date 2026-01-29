@@ -119,8 +119,8 @@ export class ShadowHost {
       .ltc-hub {
         pointer-events: auto;
         position: fixed;
-        top: 0;
-        left: 0;
+        top: 20px;
+        right: 20px;
         width: 320px;
         min-height: 140px;
         background: var(--glass-bg);
@@ -157,18 +157,6 @@ export class ShadowHost {
         display: flex;
         align-items: center;
         gap: 8px;
-      }
-
-      .ltc-icon {
-        color: var(--accent-blue);
-        font-size: 14px;
-      }
-
-      .ltc-drag-handle {
-        width: 30px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 2px;
       }
 
       .ltc-controls {
@@ -239,8 +227,6 @@ export class ShadowHost {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        max-height: 160px;
-        overflow-y: auto;
       }
 
       .ltc-history-item {
@@ -264,10 +250,8 @@ export class ShadowHost {
 
       .ltc-empty {
         font-size: 11px;
-        color: rgba(255, 255, 255, 0.85);
+        color: var(--text-secondary);
         padding: 6px 8px;
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 6px;
       }
 
       .ltc-toggle-group {
@@ -324,49 +308,17 @@ export class ShadowHost {
       .ltc-select {
         flex: 1;
         padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.1);
         border: 1px solid var(--glass-border);
         border-radius: 8px;
         color: var(--text-primary);
         font-size: 12px;
         cursor: pointer;
-        min-height: 32px;
-        line-height: 1.4;
-        appearance: none;
-        -webkit-appearance: none;
-        padding-right: 28px;
       }
 
       .ltc-select:focus {
         outline: none;
         border-color: var(--accent-blue);
-      }
-
-      .ltc-select:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-
-      .ltc-select option {
-        color: #ffffff;
-        background: #0b1220;
-      }
-
-      .ltc-select-wrap {
-        position: relative;
-        flex: 1;
-        display: flex;
-        align-items: center;
-      }
-
-      .ltc-select-caret {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 11px;
-        color: var(--text-secondary);
-        pointer-events: none;
       }
 
       .ltc-status {
