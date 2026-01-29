@@ -123,7 +123,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
   };
 
   return (
-    <div className="ltc-container" style={containerStyle}>
+    <div className="ltc-hub" style={containerStyle}>
       <div
         className="ltc-header"
         onMouseDown={handleMouseDown}

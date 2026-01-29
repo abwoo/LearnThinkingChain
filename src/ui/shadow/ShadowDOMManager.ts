@@ -258,7 +258,7 @@ export class ShadowDOMManager {
       }
 
       /* Ensure our UI elements are not affected by host styles */
-      .ltc-container,
+      .ltc-hub,
       .ltc-error-panel,
       .ltc-notification {
         all: initial !important;
@@ -268,7 +268,7 @@ export class ShadowDOMManager {
       }
 
       /* Prevent host CSS from affecting our elements */
-      .ltc-container *,
+      .ltc-hub *,
       .ltc-error-panel *,
       .ltc-notification * {
         font-family: inherit !important;

@@ -116,12 +116,13 @@ export class ShadowHost {
         pointer-events: none;
       }
 
-      .ltc-container {
+      .ltc-hub {
         pointer-events: auto;
         position: fixed;
         top: 20px;
         right: 20px;
         width: 320px;
+        min-height: 140px;
         background: var(--glass-bg);
         backdrop-filter: var(--glass-blur);
         -webkit-backdrop-filter: var(--glass-blur);
@@ -131,6 +132,8 @@ export class ShadowHost {
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         overflow: hidden;
         transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
       }
 
       .ltc-header {
