@@ -39,12 +39,22 @@ async function initialize() {
 
     // Load protocols
     const protocolsData = await chrome.storage.local.get('ltc_protocols');
-    protocols = (protocolsData.ltc_protocols as ProtocolMap) || getDefaultProtocols();
+    const storedProtocols = protocolsData.ltc_protocols as ProtocolMap | undefined;
+    protocols = storedProtocols && Object.keys(storedProtocols).length > 0
+      ? storedProtocols
+      : getDefaultProtocols();
+    if (!storedProtocols || Object.keys(storedProtocols).length === 0) {
+      await chrome.storage.local.set({ ltc_protocols: protocols });
+    }
 
     // Load active state
     const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode']);
     isActive = Boolean(state.ltc_active);
-    currentMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : 'novice';
+    const storedMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : '';
+    currentMode = storedMode && protocols[storedMode] ? storedMode : Object.keys(protocols)[0] || 'novice';
+    if (currentMode !== storedMode) {
+      await chrome.storage.local.set({ ltc_mode: currentMode });
+    }
 
     // Initialize circuit breaker
     circuitBreaker = new CircuitBreaker({
@@ -107,6 +117,16 @@ async function initialize() {
         currentMode = typeof changes.ltc_mode.newValue === 'string' ? changes.ltc_mode.newValue : 'novice';
         updateFloatingHub();
       }
+
+      if (changes.ltc_protocols) {
+        const next = changes.ltc_protocols.newValue as ProtocolMap | undefined;
+        if (next && Object.keys(next).length > 0) {
+          protocols = next;
+        } else {
+          protocols = getDefaultProtocols();
+        }
+        updateFloatingHub();
+      }
     });
 
     defaultLogger.info('Content script initialized');
@@ -160,6 +180,20 @@ async function handleInterception(
 
     await CognitiveProfileService.save(profile!);
 
+    // Store lightweight session history for hub UI
+    const historyData = await chrome.storage.local.get('ltc_last_thinking_steps');
+    const history = Array.isArray(historyData.ltc_last_thinking_steps)
+      ? historyData.ltc_last_thinking_steps
+      : [];
+    const protocolName = protocol.name || currentMode;
+    const bridges = processed.logicBridges?.slice(0, 3).join(', ') || 'No bridges';
+    const nextEntry = {
+      title: `Mode: ${protocolName}`,
+      desc: `Bridges: ${bridges}`
+    };
+    const nextHistory = [nextEntry, ...history].slice(0, 12);
+    await chrome.storage.local.set({ ltc_last_thinking_steps: nextHistory });
+
     return processed.wrappedPrompt;
   }) ?? null;
 }
@@ -177,6 +211,7 @@ function updateFloatingHub() {
     isActive,
     currentMode,
     modes,
+    protocols,
     onToggleActive: async (active) => {
       isActive = active;
       await chrome.storage.local.set({ ltc_active: active });

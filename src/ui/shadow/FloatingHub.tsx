@@ -6,11 +6,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { ProtocolMap } from '../../types/Protocols';
 
 export interface FloatingHubProps {
   isActive: boolean;
   currentMode: string;
   modes: Array<{ id: string; name: string }>;
+  protocols?: ProtocolMap;
   onToggleActive: (active: boolean) => void;
   onModeChange: (modeId: string) => void;
   status?: {
@@ -73,6 +75,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
   isActive,
   currentMode,
   modes,
+  protocols: propProtocols,
   onToggleActive,
   onModeChange,
   status
@@ -90,8 +93,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       const data = await chrome.storage.local.get([
         'ltc_last_thinking_steps',
         'ltc_protocols',
-        'ltc_profile',
-        'ltc_mode'
+        'ltc_profile'
       ]);
       const steps = Array.isArray(data.ltc_last_thinking_steps) ? data.ltc_last_thinking_steps : [];
       setHistory(steps);
@@ -162,7 +164,8 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
   };
 
   const protocolPreview = useMemo(() => {
-    const p = protocols[currentMode] || {};
+    const source = propProtocols ?? protocols;
+    const p = source[currentMode] || {};
     const q1 = p.q1_blind_spot || p.q1 || '—';
     const q2 = p.q2_entropy || p.q2 || '—';
     const q3 = p.q3_backtrack || p.q3 || '—';
@@ -174,7 +177,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       `Q3: ${q3}`,
       `Q4: ${q4}`
     ].join('\n');
-  }, [protocols, currentMode]);
+  }, [protocols, propProtocols, currentMode]);
 
   return (
     <div className="ltc-hub" style={containerStyle}>
@@ -204,7 +207,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
             className="ltc-select"
             value={currentMode}
             onChange={(e) => onModeChange(e.target.value)}
-            disabled={!isActive}
+            disabled={modes.length === 0}
             aria-label="Select cognitive mode"
           >
             {modes.map(mode => (
