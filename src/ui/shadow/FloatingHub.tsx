@@ -118,7 +118,9 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
 
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
 
@@ -194,6 +196,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
               type="checkbox"
               checked={isActive}
               onChange={(e) => onToggleActive(e.target.checked)}
+              aria-label="Enable LearnThinkingChain"
             />
             <span className="ltc-slider" />
           </label>
@@ -202,6 +205,7 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
             value={currentMode}
             onChange={(e) => onModeChange(e.target.value)}
             disabled={!isActive}
+            aria-label="Select cognitive mode"
           >
             {modes.map(mode => (
               <option key={mode.id} value={mode.id}>
