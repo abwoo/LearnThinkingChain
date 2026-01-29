@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  root: __dirname,
   plugins: [react()],
   resolve: {
     alias: {
@@ -13,7 +14,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../../dist/web',
+    outDir: path.resolve(__dirname, '../../dist/web'),
     sourcemap: true,
     rollupOptions: {
       input: {
