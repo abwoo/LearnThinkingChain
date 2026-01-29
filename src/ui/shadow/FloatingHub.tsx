@@ -22,6 +22,8 @@ export interface FloatingHubProps {
 export class FloatingHub {
   private root: ReturnType<typeof createRoot> | null = null;
   private shadowRoot: ShadowRoot;
+  private container: HTMLDivElement | null = null;
+  private lastProps: FloatingHubProps | null = null;
 
   constructor(shadowRoot: ShadowRoot) {
     this.shadowRoot = shadowRoot;
@@ -31,20 +33,24 @@ export class FloatingHub {
    * Render FloatingHub component
    */
   render(props: FloatingHubProps): void {
-    const container = document.createElement('div');
-    container.className = 'ltc-container';
-    this.shadowRoot.appendChild(container);
-
-    this.root = createRoot(container);
-    this.root.render(<FloatingHubComponent {...props} />);
+    if (!this.container) {
+      this.container = document.createElement('div');
+      this.container.className = 'ltc-root';
+      this.shadowRoot.appendChild(this.container);
+      this.root = createRoot(this.container);
+    }
+    this.lastProps = props;
+    this.root?.render(<FloatingHubComponent {...props} />);
   }
 
   /**
    * Update props
    */
   update(_props: Partial<FloatingHubProps>): void {
-    // Re-render with new props
-    // In a real implementation, you'd use React state management
+    if (!this.root || !this.lastProps) return;
+    const nextProps = { ...this.lastProps, ..._props };
+    this.lastProps = nextProps;
+    this.root.render(<FloatingHubComponent {...nextProps} />);
   }
 
   /**
@@ -55,6 +61,11 @@ export class FloatingHub {
       this.root.unmount();
       this.root = null;
     }
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
+    this.lastProps = null;
   }
 }
 

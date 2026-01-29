@@ -112,6 +112,10 @@ export class ShadowHost {
         padding: 0;
       }
 
+      .ltc-root {
+        pointer-events: none;
+      }
+
       .ltc-container {
         pointer-events: auto;
         position: fixed;
