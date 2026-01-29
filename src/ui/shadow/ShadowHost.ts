@@ -166,6 +166,94 @@ export class ShadowHost {
         gap: 12px;
       }
 
+      .ltc-trend {
+        padding: 8px 12px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+      }
+
+      .ltc-expand-btn {
+        margin: 0 12px 10px 12px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+        border: 1px solid var(--glass-border);
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .ltc-panel {
+        padding: 12px 18px 16px 18px;
+        border-top: 1px solid var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .ltc-section-title {
+        font-size: 11px;
+        letter-spacing: 0.6px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+      }
+
+      .ltc-protocol {
+        white-space: pre-wrap;
+        font-size: 11px;
+        line-height: 1.4;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: var(--text-primary);
+      }
+
+      .ltc-path-map {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+      }
+
+      .ltc-path-arrow {
+        opacity: 0.6;
+      }
+
+      .ltc-history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .ltc-history-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        font-size: 11px;
+      }
+
+      .ltc-history-item strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .ltc-history-item span {
+        color: var(--text-secondary);
+      }
+
+      .ltc-empty {
+        font-size: 11px;
+        color: var(--text-secondary);
+        padding: 6px 8px;
+      }
+
       .ltc-toggle-group {
         display: flex;
         align-items: center;
