@@ -20,6 +20,20 @@ let currentMode = 'novice';
 let profile: UserCognitiveProfile | null = null;
 let protocols: ProtocolMap = getDefaultProtocols();
 let customFrameworks: Array<{ id: string; name: string; content: string; updated_at: number }> = [];
+type LegacyFramework = { id?: string; name?: string; created_at?: number };
+
+function migrateLegacyFrameworks(
+  legacy: LegacyFramework[]
+): Array<{ id: string; name: string; content: string; updated_at: number }> {
+  return legacy
+    .filter((item) => item && typeof item.name === 'string')
+    .map((item) => ({
+      id: typeof item.id === 'string' ? item.id : `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: item.name as string,
+      content: item.name as string,
+      updated_at: typeof item.created_at === 'number' ? item.created_at : Date.now()
+    }));
+}
 const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Components
@@ -51,15 +65,18 @@ async function initialize() {
     }
 
     // Load active state
-    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_custom_frameworks']);
+    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_custom_frameworks', 'ltc_frameworks']);
     isActive = Boolean(state.ltc_active);
     const storedMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : '';
     currentMode = storedMode && protocols[storedMode] ? storedMode : Object.keys(protocols)[0] || 'novice';
     if (currentMode !== storedMode) {
       await chrome.storage.local.set({ ltc_mode: currentMode });
     }
-    if (Array.isArray(state.ltc_custom_frameworks)) {
+    if (Array.isArray(state.ltc_custom_frameworks) && state.ltc_custom_frameworks.length > 0) {
       customFrameworks = state.ltc_custom_frameworks;
+    } else if (Array.isArray(state.ltc_frameworks) && state.ltc_frameworks.length > 0) {
+      customFrameworks = migrateLegacyFrameworks(state.ltc_frameworks as LegacyFramework[]);
+      await chrome.storage.local.set({ ltc_custom_frameworks: customFrameworks });
     }
 
     // Initialize circuit breaker

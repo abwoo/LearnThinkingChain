@@ -2,6 +2,34 @@ import type { MessagePayload, MessageResponse } from '../messaging/Types';
 import type { ResponseRecord } from '../types/Response';
 import { HistoryService } from '../core/services/HistoryService';
 
+type LegacyFramework = { id?: string; name?: string; created_at?: number };
+
+function migrateFrameworks(
+  allData: Record<string, unknown>
+): { didMigrate: boolean; frameworks: Array<{ id: string; name: string; content: string; updated_at: number }> } {
+  const current = Array.isArray(allData.ltc_custom_frameworks)
+    ? (allData.ltc_custom_frameworks as Array<{ id: string; name: string; content: string; updated_at: number }>)
+    : [];
+  if (current.length > 0) {
+    return { didMigrate: false, frameworks: current };
+  }
+  const legacy = Array.isArray(allData.ltc_frameworks)
+    ? (allData.ltc_frameworks as LegacyFramework[])
+    : [];
+  if (legacy.length === 0) {
+    return { didMigrate: false, frameworks: [] };
+  }
+  const migrated = legacy
+    .filter((item) => item && typeof item.name === 'string')
+    .map((item) => ({
+      id: typeof item.id === 'string' ? item.id : `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: item.name as string,
+      content: item.name as string,
+      updated_at: typeof item.created_at === 'number' ? item.created_at : Date.now()
+    }));
+  return { didMigrate: true, frameworks: migrated };
+}
+
 function handleMessage(
   request: MessagePayload,
   sendResponse: (response: MessageResponse) => void
@@ -9,6 +37,14 @@ function handleMessage(
   try {
     if (request.type === 'GET_STATE') {
       chrome.storage.local.get(null, (allData) => {
+        const { didMigrate, frameworks } = migrateFrameworks(allData as Record<string, unknown>);
+        if (didMigrate) {
+          chrome.storage.local.set({ ltc_custom_frameworks: frameworks }, () => {
+            (allData as Record<string, unknown>).ltc_custom_frameworks = frameworks;
+            sendResponse(allData as MessageResponse);
+          });
+          return;
+        }
         sendResponse(allData as MessageResponse);
       });
       return true;
