@@ -19,6 +19,7 @@ let isActive = false;
 let currentMode = 'novice';
 let profile: UserCognitiveProfile | null = null;
 let protocols: ProtocolMap = getDefaultProtocols();
+let customFrameworks: Array<{ id: string; name: string; content: string; updated_at: number }> = [];
 const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Components
@@ -50,12 +51,15 @@ async function initialize() {
     }
 
     // Load active state
-    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode']);
+    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_custom_frameworks']);
     isActive = Boolean(state.ltc_active);
     const storedMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : '';
     currentMode = storedMode && protocols[storedMode] ? storedMode : Object.keys(protocols)[0] || 'novice';
     if (currentMode !== storedMode) {
       await chrome.storage.local.set({ ltc_mode: currentMode });
+    }
+    if (Array.isArray(state.ltc_custom_frameworks)) {
+      customFrameworks = state.ltc_custom_frameworks;
     }
 
     // Initialize circuit breaker
@@ -135,7 +139,10 @@ async function initialize() {
         updateFloatingHub();
       }
 
-      if (changes.ltc_frameworks) {
+      if (changes.ltc_custom_frameworks) {
+        customFrameworks = Array.isArray(changes.ltc_custom_frameworks.newValue)
+          ? changes.ltc_custom_frameworks.newValue
+          : [];
         updateFloatingHub();
       }
     });
@@ -241,6 +248,7 @@ function updateFloatingHub() {
     currentMode,
     modes,
     protocols,
+    customFrameworks,
     onToggleActive: async (active) => {
       isActive = active;
       await chrome.storage.local.set({ ltc_active: active });

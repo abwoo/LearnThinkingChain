@@ -1,7 +1,6 @@
 import type { MessagePayload, MessageResponse } from '../messaging/Types';
 import type { ResponseRecord } from '../types/Response';
 import { HistoryService } from '../core/services/HistoryService';
-import { FrameworkService } from '../core/services/FrameworkService';
 
 function handleMessage(
   request: MessagePayload,
@@ -43,6 +42,13 @@ function handleMessage(
       return true;
     }
 
+    if (request.type === 'SAVE_CUSTOM_FRAMEWORKS' && request.frameworks) {
+      chrome.storage.local.set({ ltc_custom_frameworks: request.frameworks }, () => {
+        sendResponse({ success: true });
+      });
+      return true;
+    }
+
     if (request.type === 'HISTORY_APPEND' && request.historyEntry) {
       HistoryService.appendEntry(request.historyEntry).then(() => {
         sendResponse({ success: true });
@@ -66,27 +72,6 @@ function handleMessage(
 
     if (request.type === 'HISTORY_CLEAR') {
       HistoryService.clearHistory().then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
-
-    if (request.type === 'FRAMEWORK_ADD' && request.frameworkName) {
-      FrameworkService.add(request.frameworkName).then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
-
-    if (request.type === 'FRAMEWORK_DELETE' && request.frameworkId) {
-      FrameworkService.remove(request.frameworkId).then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
-
-    if (request.type === 'FRAMEWORK_SET' && request.frameworks) {
-      FrameworkService.setAll(request.frameworks).then(() => {
         sendResponse({ success: true });
       });
       return true;
@@ -147,7 +132,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     ltc_mode?: string;
     ltc_latest_response?: ResponseRecord;
     ltc_last_thinking_steps?: Array<{ title: string; desc: string }>;
-    ltc_frameworks?: Array<{ id: string; name: string; created_at: number }>;
+    ltc_custom_frameworks?: Array<{ id: string; name: string; content: string; updated_at: number }>;
   } = {};
   if (changes.ltc_active) payload.ltc_active = Boolean(changes.ltc_active.newValue);
   if (changes.ltc_mode) {
@@ -162,9 +147,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       ? changes.ltc_last_thinking_steps.newValue
       : [];
   }
-  if (changes.ltc_frameworks) {
-    payload.ltc_frameworks = Array.isArray(changes.ltc_frameworks.newValue)
-      ? changes.ltc_frameworks.newValue
+  if (changes.ltc_custom_frameworks) {
+    payload.ltc_custom_frameworks = Array.isArray(changes.ltc_custom_frameworks.newValue)
+      ? changes.ltc_custom_frameworks.newValue
       : [];
   }
   if (Object.keys(payload).length === 0) return;
