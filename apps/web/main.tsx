@@ -537,20 +537,10 @@ ${rawInput}`;
   render(): void {
     if (!this.state.hydrated) {
       this.renderEmptyState(this.state.connection.last_error || 'Waiting for Extension data...');
-      this.renderStats();
       return;
     }
     this.renderHistory();
-    this.renderStats();
     this.renderFrameworkManager();
-    this.renderKnowledgeGaps();
-    this.renderLearningDebtDetails();
-    this.renderResearchPanel();
-    this.renderResearchCards();
-    this.renderTimeline();
-    this.renderFilters();
-    const modeEl = document.getElementById('active-mode');
-    if (modeEl) modeEl.textContent = this.state.mode.toUpperCase();
   },
 
   renderEmptyState(reason: string): void {

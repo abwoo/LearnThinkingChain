@@ -12,14 +12,10 @@ const STORAGE_KEY = 'ltc_frameworks';
 
 export class FrameworkStore {
   /**
-   * 返回默认的 Novice Backtracker 框架定义
+   * 返回默认的框架集合
    */
-  static getDefaultFramework(): ThinkingFramework {
-    return {
-      id: 'novice_backtracker',
-      name: 'Novice Backtracker',
-      description: 'Simulate a novice peer learner using recursive backtracking and first-principles thinking.',
-      systemPrompt: `[SYSTEM INSTRUCTION: COGNITIVE EMULATOR MODE]
+  static getDefaultFrameworks(): ThinkingFramework[] {
+    const basePrompt = `[SYSTEM INSTRUCTION: COGNITIVE EMULATOR MODE]
 You are NOT an expert. You are a "Novice Peer Learner" simulating a Zone of Proximal Development (ZPD).
 Your goal is to demonstrate the *process* of thinking, not the result.
 
@@ -40,9 +36,41 @@ PROTOCOL:
    - Ask: "Based on this new path, what is the very next step?"
 
 [USER INPUT]: {{userInput}}
-`,
-      isActive: true
-    };
+`;
+    return [
+      {
+        id: 'novice_backtracker',
+        name: 'Novice Backtracker',
+        description: 'Novice peer learner with recursive backtracking.',
+        systemPrompt: basePrompt,
+        isActive: true
+      },
+      {
+        id: 'analogy_weaver',
+        name: 'Analogy Weaver',
+        description: 'Uses analogies to reveal hidden structure.',
+        systemPrompt: basePrompt,
+        isActive: false
+      },
+      {
+        id: 'first_principles',
+        name: 'First Principles',
+        description: 'Rebuilds logic from atomic definitions.',
+        systemPrompt: basePrompt,
+        isActive: false
+      },
+      {
+        id: 'socratic_guide',
+        name: 'Socratic Guide',
+        description: 'Asks guiding questions and hands off.',
+        systemPrompt: basePrompt,
+        isActive: false
+      }
+    ];
+  }
+
+  static getDefaultFramework(): ThinkingFramework {
+    return FrameworkStore.getDefaultFrameworks()[0];
   }
 
   /**
@@ -55,7 +83,7 @@ PROTOCOL:
       return raw as ThinkingFramework[];
     }
 
-    const seeded = [FrameworkStore.getDefaultFramework()];
+    const seeded = FrameworkStore.getDefaultFrameworks();
     await chrome.storage.local.set({ [STORAGE_KEY]: seeded });
     return seeded;
   }
