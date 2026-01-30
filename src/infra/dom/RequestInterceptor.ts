@@ -168,9 +168,9 @@ export class RequestInterceptor {
       return;
     }
 
-    // Check if already wrapped
-    if (originalValue.includes('<<<LTC_START>>>')) {
-      this.logger.debug('RequestInterceptor: Already wrapped, allowing through');
+    // Check if already wrapped (second Enter should send)
+    if (originalValue.includes('[SYSTEM INSTRUCTION: COGNITIVE EMULATOR MODE]')) {
+      this.logger.debug('RequestInterceptor: Detected wrapped prompt, allowing through');
       this.allowEvent(originalEvent);
       return;
     }
@@ -196,9 +196,34 @@ export class RequestInterceptor {
       // Wait a tick for React to see the change
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Re-dispatch the event to allow React to handle it
+      // For Enter key: first press should only paste prompt (do NOT submit)
+      if (originalEvent instanceof KeyboardEvent) {
+        this.resetProcessing();
+        this.failureCount = 0;
+        return;
+      }
+
+      // Re-dispatch on the correct target: click/submit must go to the button
+      const dispatchTarget =
+        originalEvent.type === 'click' || originalEvent.type === 'submit'
+          ? (originalEvent.target as EventTarget)
+          : element;
+
+      // If re-dispatching on the button, temporarily remove our click/submit listeners so we don't re-intercept
+      if (dispatchTarget !== element) {
+        document.removeEventListener('click', this.handleSubmitCapture, true);
+        document.removeEventListener('submit', this.handleSubmitCapture, true);
+      }
+
       this.logger.debug('RequestInterceptor: Re-dispatching event with processed value');
-      this.replayEvent(originalEvent, element);
+      this.replayEvent(originalEvent, dispatchTarget);
+
+      if (dispatchTarget !== element) {
+        setTimeout(() => {
+          document.addEventListener('click', this.handleSubmitCapture, true);
+          document.addEventListener('submit', this.handleSubmitCapture, true);
+        }, 100);
+      }
 
       this.resetProcessing();
       this.failureCount = 0; // Reset on success
@@ -207,10 +232,12 @@ export class RequestInterceptor {
       this.logger.error('RequestInterceptor: Error processing interception', error);
       this.failureCount++;
 
-      // Circuit breaker: if too many failures, fallback
+      // 出错时立刻放行当前事件，避免输入被“吞掉”
+      this.allowEvent(originalEvent);
+
+      // Circuit breaker: 记录失败次数，便于后续降级策略
       if (this.failureCount >= this.MAX_FAILURES) {
-        this.logger.error('RequestInterceptor: Circuit breaker triggered, falling back');
-        this.allowEvent(originalEvent);
+        this.logger.error('RequestInterceptor: Circuit breaker triggered');
       }
 
       this.resetProcessing();
@@ -240,11 +267,11 @@ export class RequestInterceptor {
   }
 
   /**
-   * Replay event after processing
+   * Replay event after processing (on button for click/submit, on input for keydown)
    */
-  private replayEvent(originalEvent: Event, element: InputElement): void {
+  private replayEvent(originalEvent: Event, target: EventTarget): void {
     const syntheticEvent = this.createSyntheticEvent(originalEvent);
-    element.dispatchEvent(syntheticEvent);
+    target.dispatchEvent(syntheticEvent);
   }
 
   private createSyntheticEvent(originalEvent: Event): Event {

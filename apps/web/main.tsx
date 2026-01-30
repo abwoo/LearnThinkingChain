@@ -1,4 +1,4 @@
-import type { ExtensionState, ExternalMessage, MessagePayload, MessageResponse, CustomFramework } from '../../src/messaging/Types';
+import type { ExtensionState, ExternalMessage, MessagePayload, MessageResponse } from '../../src/messaging/Types';
 
 type DebtBucket = {
   total_prompts: number;
@@ -32,6 +32,8 @@ type CognitiveProfile = {
     by_type: Record<string, DebtBucket>;
     sessions: SessionRecord[];
   };
+  last_session_id: string;
+  last_updated: number;
 };
 
 type ExtensionSettings = {
@@ -65,6 +67,22 @@ type ResponseRecord = {
   archived?: boolean;
 };
 
+type HistoryEntry = {
+  id: string;
+  title: string;
+  desc: string;
+  url?: string;
+  timestamp?: number;
+};
+
+type ThinkingFramework = {
+  id: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  isActive: boolean;
+};
+
 type ConnectionState = {
   ok: boolean;
   last_sync_at: number;
@@ -95,12 +113,15 @@ const CloudHub = {
       meta_cognitive_level: 1,
       hidden_constraint_failures: 0,
       thinking_trend_counts: {},
-      learning_debt: { hidden_constraint: 0, by_topic: {}, by_module: {}, by_type: {}, sessions: [] }
+      learning_debt: { hidden_constraint: 0, by_topic: {}, by_module: {}, by_type: {}, sessions: [] },
+      last_session_id: '',
+      last_updated: 0
     } as CognitiveProfile,
-    history: [] as { title: string; desc: string }[],
+    history: [] as HistoryEntry[],
+    frameworks: [] as ThinkingFramework[],
+    selectedFrameworkId: '',
     theme: 'dark',
     protocols: {} as Record<string, ProtocolDefinition>,
-    customFrameworks: [] as CustomFramework[],
     settings: {
       session_gap_minutes: 30,
       taxonomy: { topics: [], modules: [], types: [] }
@@ -135,25 +156,17 @@ const CloudHub = {
 
     await this.syncWithExtension();
     this.bindEvents();
-    this.render();
-
-    if (chrome?.storage?.onChanged) {
+    if (chrome.storage?.onChanged) {
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (areaName !== 'local') return;
         if (changes.ltc_last_thinking_steps) {
-          this.state.history = Array.isArray(changes.ltc_last_thinking_steps.newValue)
-            ? changes.ltc_last_thinking_steps.newValue
-            : [];
+          const steps = changes.ltc_last_thinking_steps.newValue;
+          this.state.history = Array.isArray(steps) ? steps : [];
           this.renderHistory();
-        }
-        if (changes.ltc_custom_frameworks) {
-          this.state.customFrameworks = Array.isArray(changes.ltc_custom_frameworks.newValue)
-            ? changes.ltc_custom_frameworks.newValue
-            : [];
-          this.renderCustomFrameworks();
         }
       });
     }
+    this.render();
   },
 
   async syncWithExtension(): Promise<void> {
@@ -183,14 +196,13 @@ const CloudHub = {
         this.state.active = response.ltc_active || false;
         this.state.mode = response.ltc_mode || 'novice';
         this.state.profile = this.normalizeProfile(response.ltc_profile);
-        this.state.history = response.ltc_last_thinking_steps || [];
-        this.state.protocols = response.ltc_protocols || {};
+        this.state.history = (response.ltc_last_thinking_steps || []) as HistoryEntry[];
+        this.state.protocols = (response.ltc_protocols || {}) as unknown as Record<string, ProtocolDefinition>;
+        this.state.frameworks = (response as { ltc_frameworks?: ThinkingFramework[] }).ltc_frameworks || [];
+        this.ensureFrameworkSelection();
         this.state.settings = this.normalizeSettings(response.ltc_settings);
-        this.state.customFrameworks = response.ltc_custom_frameworks || [];
         this.state.latestResponse = response.ltc_latest_response || null;
         this.state.responseHistory = response.ltc_response_history || [];
-        this.refreshProtocolEditor();
-        this.refreshTaxonomyEditor();
         this.bindPushChannel();
         this.render();
         return;
@@ -208,15 +220,16 @@ const CloudHub = {
       if (!payload) return;
       if (typeof payload.ltc_active === 'boolean') this.state.active = payload.ltc_active;
       if (payload.ltc_mode) this.state.mode = payload.ltc_mode;
+      if (payload.ltc_last_thinking_steps) {
+        this.state.history = payload.ltc_last_thinking_steps as HistoryEntry[];
+      }
+      if (payload.ltc_frameworks) {
+        this.state.frameworks = payload.ltc_frameworks;
+        this.ensureFrameworkSelection();
+      }
       if (payload.ltc_latest_response) {
         this.state.latestResponse = payload.ltc_latest_response;
         this.state.responseHistory = [payload.ltc_latest_response, ...this.state.responseHistory].slice(0, 12);
-      }
-      if (payload.ltc_last_thinking_steps) {
-        this.state.history = payload.ltc_last_thinking_steps;
-      }
-      if (payload.ltc_custom_frameworks) {
-        this.state.customFrameworks = payload.ltc_custom_frameworks;
       }
       this.updateConnection(true, '');
       this.state.hydrated = true;
@@ -263,15 +276,6 @@ const CloudHub = {
       }
     });
 
-    document.getElementById('clear-history')?.addEventListener('click', () => {
-      if (!this.state.extensionId) return;
-      if (confirm('确认清空历史记录？')) {
-        this.sendToExtension({ type: 'HISTORY_CLEAR' });
-        this.state.history = [];
-        this.renderHistory();
-      }
-    });
-
     document.getElementById('save-settings')?.addEventListener('click', () => {
       const input = document.getElementById('session-gap-input') as HTMLInputElement | null;
       if (!input) return;
@@ -309,28 +313,6 @@ const CloudHub = {
       } catch {
         if (status) status.textContent = 'JSON 格式错误';
       }
-    });
-
-    document.getElementById('add-framework')?.addEventListener('click', () => {
-      const nameInput = document.getElementById('framework-name-input') as HTMLInputElement | null;
-      const contentInput = document.getElementById('framework-content-input') as HTMLTextAreaElement | null;
-      const status = document.getElementById('framework-save-status');
-      if (!nameInput || !contentInput) return;
-      const name = nameInput.value.trim();
-      const content = contentInput.value.trim();
-      if (!name || !content || !this.state.extensionId) return;
-      const entry: CustomFramework = {
-        id: `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        name,
-        content,
-        updated_at: Date.now()
-      };
-      this.state.customFrameworks = [entry, ...this.state.customFrameworks].slice(0, 12);
-      this.sendToExtension({ type: 'SAVE_CUSTOM_FRAMEWORKS', frameworks: this.state.customFrameworks });
-      nameInput.value = '';
-      contentInput.value = '';
-      if (status) status.textContent = '已同步到扩展';
-      this.renderCustomFrameworks();
     });
 
     document.getElementById('inc-hidden-constraint')?.addEventListener('click', () => {
@@ -389,6 +371,53 @@ const CloudHub = {
       this.state.filter.showArchived = target.checked;
       this.renderResearchCards();
     });
+
+    document.getElementById('framework-add')?.addEventListener('click', () => {
+      const id = `fw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const draft: ThinkingFramework = {
+        id,
+        name: 'New Framework',
+        description: '',
+        systemPrompt: '请输入系统提示词模板，必须包含 {{userInput}}',
+        isActive: false
+      };
+      this.state.frameworks = [draft, ...this.state.frameworks];
+      this.state.selectedFrameworkId = id;
+      this.renderFrameworkManager();
+    });
+
+    document.getElementById('framework-save')?.addEventListener('click', () => {
+      const framework = this.collectFrameworkInput();
+      if (!framework) return;
+      this.sendToExtension({ type: 'SAVE_FRAMEWORK', framework });
+      this.state.frameworks = this.upsertFramework(framework);
+      this.ensureFrameworkSelection();
+      this.renderFrameworkManager();
+      this.updateFrameworkStatus('已同步');
+    });
+
+    document.getElementById('framework-delete')?.addEventListener('click', () => {
+      const selected = this.getSelectedFramework();
+      if (!selected) return;
+      if (!confirm(`确认删除框架 "${selected.name}"?`)) return;
+      this.sendToExtension({ type: 'DELETE_FRAMEWORK', frameworkId: selected.id });
+      this.state.frameworks = this.state.frameworks.filter((f) => f.id !== selected.id);
+      this.ensureFrameworkSelection();
+      this.renderFrameworkManager();
+      this.updateFrameworkStatus('已同步');
+    });
+
+    document.getElementById('framework-set-active')?.addEventListener('click', () => {
+      const selected = this.getSelectedFramework();
+      if (!selected) return;
+      this.sendToExtension({ type: 'SET_ACTIVE_FRAMEWORK', frameworkId: selected.id });
+      this.state.frameworks = this.state.frameworks.map((f) => ({
+        ...f,
+        isActive: f.id === selected.id
+      }));
+      this.renderFrameworkManager();
+      this.updateFrameworkStatus('已同步');
+    });
   },
 
   sendToExtension(message: MessagePayload): void {
@@ -402,6 +431,56 @@ const CloudHub = {
 
   saveProfile(): void {
     this.sendToExtension({ type: 'SAVE_PROFILE', profile: this.state.profile });
+  },
+
+  ensureFrameworkSelection(): void {
+    if (this.state.frameworks.length === 0) {
+      this.state.selectedFrameworkId = '';
+      return;
+    }
+    const active = this.state.frameworks.find((f) => f.isActive);
+    if (active) {
+      this.state.selectedFrameworkId = active.id;
+      return;
+    }
+    if (!this.state.selectedFrameworkId) {
+      this.state.selectedFrameworkId = this.state.frameworks[0].id;
+    }
+  },
+
+  getSelectedFramework(): ThinkingFramework | null {
+    return this.state.frameworks.find((f) => f.id === this.state.selectedFrameworkId) || null;
+  },
+
+  upsertFramework(framework: ThinkingFramework): ThinkingFramework[] {
+    const index = this.state.frameworks.findIndex((f) => f.id === framework.id);
+    if (index >= 0) {
+      const next = [...this.state.frameworks];
+      next[index] = framework;
+      return next;
+    }
+    return [framework, ...this.state.frameworks];
+  },
+
+  collectFrameworkInput(): ThinkingFramework | null {
+    const selected = this.getSelectedFramework();
+    const nameInput = document.getElementById('framework-name') as HTMLInputElement | null;
+    const descInput = document.getElementById('framework-description') as HTMLTextAreaElement | null;
+    const promptInput = document.getElementById('framework-prompt') as HTMLTextAreaElement | null;
+    if (!nameInput || !descInput || !promptInput) return null;
+    const id = selected?.id || `fw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      id,
+      name: nameInput.value.trim() || 'Untitled Framework',
+      description: descInput.value.trim(),
+      systemPrompt: promptInput.value,
+      isActive: selected?.isActive ?? false
+    };
+  },
+
+  updateFrameworkStatus(text: string): void {
+    const status = document.getElementById('framework-status');
+    if (status) status.textContent = text;
   },
 
   switchView(viewId: string): void {
@@ -463,49 +542,15 @@ ${rawInput}`;
     }
     this.renderHistory();
     this.renderStats();
+    this.renderFrameworkManager();
     this.renderKnowledgeGaps();
     this.renderLearningDebtDetails();
     this.renderResearchPanel();
     this.renderResearchCards();
     this.renderTimeline();
     this.renderFilters();
-    this.renderCustomFrameworks();
     const modeEl = document.getElementById('active-mode');
     if (modeEl) modeEl.textContent = this.state.mode.toUpperCase();
-  },
-
-  renderCustomFrameworks(): void {
-    const container = document.getElementById('framework-list');
-    if (!container) return;
-    if (!this.state.customFrameworks.length) {
-      container.innerHTML = '<div class="dim">暂无自定义框架</div>';
-      return;
-    }
-    container.innerHTML = `<div class="framework-list">${
-      this.state.customFrameworks
-        .map((item) => `
-          <div class="framework-item" data-id="${item.id}">
-            <strong>${item.name}</strong>
-            <span>${item.content}</span>
-            <div class="framework-actions">
-              <button class="btn-glass btn-small" data-action="delete">删除</button>
-            </div>
-          </div>
-        `)
-        .join('')
-    }</div>`;
-
-    container.querySelectorAll('.framework-item').forEach((item) => {
-      item.addEventListener('click', (event) => {
-        const target = event.target as HTMLElement;
-        if (target.dataset.action !== 'delete') return;
-        const id = (item as HTMLElement).dataset.id || '';
-        if (!id) return;
-        this.state.customFrameworks = this.state.customFrameworks.filter((fw) => fw.id !== id);
-        this.sendToExtension({ type: 'SAVE_CUSTOM_FRAMEWORKS', frameworks: this.state.customFrameworks });
-        this.renderCustomFrameworks();
-      });
-    });
   },
 
   renderEmptyState(reason: string): void {
@@ -530,12 +575,101 @@ ${rawInput}`;
     chain.innerHTML = this.state.history.length > 0 ? '' : '<p class="dim">No active pulse detected...</p>';
     this.state.history.forEach((step) => {
       const stepDiv = document.createElement('div');
-      stepDiv.className = 'chain-step glass animate-in';
+      stepDiv.className = 'chain-step glass animate-in history-item';
       stepDiv.style.padding = '15px';
       stepDiv.style.marginBottom = '10px';
-      stepDiv.innerHTML = `<strong>${step.title}</strong><br><small>${step.desc}</small>`;
+      const hasLongDesc = step.desc && step.desc.length > 120;
+      stepDiv.innerHTML = `
+        <strong>${step.title}</strong>
+        <div class="history-desc">${step.desc}</div>
+        <div class="history-actions">
+          ${step.url ? `<button class="history-link" data-url="${step.url}">跳转对话</button>` : ''}
+          ${hasLongDesc ? `<button class="history-toggle">展开</button>` : ''}
+          <button class="history-delete" data-id="${step.id}">删除</button>
+        </div>
+      `;
       chain.appendChild(stepDiv);
     });
+
+    chain.querySelectorAll('.history-link').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const target = event.currentTarget as HTMLButtonElement;
+        const url = target.dataset.url;
+        if (url) window.open(url, '_blank');
+      });
+    });
+
+    chain.querySelectorAll('.history-toggle').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const target = event.currentTarget as HTMLButtonElement;
+        const item = target.closest('.history-item');
+        if (item) {
+          item.classList.toggle('expanded');
+          target.textContent = item.classList.contains('expanded') ? '收起' : '展开';
+        }
+      });
+    });
+
+    chain.querySelectorAll('.history-delete').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const target = event.currentTarget as HTMLButtonElement;
+        const id = target.dataset.id;
+        if (id) this.deleteHistoryById(id);
+      });
+    });
+  },
+
+  deleteHistoryById(id: string): void {
+    this.state.history = this.state.history.filter((item) => item.id !== id);
+    this.sendToExtension({ type: 'DELETE_HISTORY', historyId: id });
+    this.renderHistory();
+  },
+
+  renderFrameworkManager(): void {
+    const list = document.getElementById('framework-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (this.state.frameworks.length === 0) {
+      list.innerHTML = '<div class="dim">暂无框架</div>';
+      return;
+    }
+
+    this.state.frameworks.forEach((framework) => {
+      const item = document.createElement('div');
+      item.className = `framework-item ${framework.isActive ? 'active' : ''}`;
+      item.innerHTML = `
+        <div class="framework-meta">
+          <strong>${framework.name}</strong>
+          <span>${framework.description || '无描述'}</span>
+        </div>
+        <div>${framework.isActive ? 'ACTIVE' : ''}</div>
+      `;
+      item.addEventListener('click', () => {
+        this.state.selectedFrameworkId = framework.id;
+        this.renderFrameworkManager();
+      });
+      list.appendChild(item);
+    });
+
+    const selected = this.getSelectedFramework();
+    const nameInput = document.getElementById('framework-name') as HTMLInputElement | null;
+    const descInput = document.getElementById('framework-description') as HTMLTextAreaElement | null;
+    const promptInput = document.getElementById('framework-prompt') as HTMLTextAreaElement | null;
+    if (!nameInput || !descInput || !promptInput) return;
+
+    if (!selected) {
+      nameInput.value = '';
+      descInput.value = '';
+      promptInput.value = '';
+      return;
+    }
+
+    nameInput.value = selected.name;
+    descInput.value = selected.description;
+    promptInput.value = selected.systemPrompt;
   },
 
   renderStats(): void {
@@ -854,7 +988,9 @@ ${rawInput}`;
       meta_cognitive_level: 1,
       hidden_constraint_failures: 0,
       thinking_trend_counts: {},
-      learning_debt: { hidden_constraint: 0, by_topic: {}, by_module: {}, by_type: {}, sessions: [] }
+      learning_debt: { hidden_constraint: 0, by_topic: {}, by_module: {}, by_type: {}, sessions: [] },
+      last_session_id: '',
+      last_updated: 0
     };
     return { ...base, ...(profile ?? {}) };
   },

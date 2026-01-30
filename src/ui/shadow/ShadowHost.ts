@@ -119,8 +119,8 @@ export class ShadowHost {
       .ltc-hub {
         pointer-events: auto;
         position: fixed;
-        top: 0;
-        left: 0;
+        top: 20px;
+        right: 20px;
         width: 320px;
         min-height: 140px;
         background: var(--glass-bg);
@@ -253,13 +253,60 @@ export class ShadowHost {
         font-size: 11px;
       }
 
-      .ltc-history-item strong {
-        color: var(--text-primary);
-        font-weight: 600;
+      .ltc-history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
       }
 
-      .ltc-history-item span {
+      .ltc-history-title {
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 11px;
+        text-align: left;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .ltc-history-title:hover {
+        text-decoration: underline;
+      }
+
+      .ltc-history-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .ltc-history-delete,
+      .ltc-history-toggle {
+        border: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+        border-radius: 6px;
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+
+      .ltc-history-desc {
         color: var(--text-secondary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .ltc-history-item.expanded .ltc-history-desc {
+        -webkit-line-clamp: unset;
+      }
+
+      .ltc-history-time {
+        color: var(--text-secondary);
+        font-size: 10px;
       }
 
       .ltc-empty {

@@ -19,7 +19,8 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../../dist/extension',
+    outDir: path.resolve(__dirname, '../../dist/extension'),
+    emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
       input: {

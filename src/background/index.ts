@@ -1,34 +1,7 @@
 import type { MessagePayload, MessageResponse } from '../messaging/Types';
 import type { ResponseRecord } from '../types/Response';
 import { HistoryService } from '../core/services/HistoryService';
-
-type LegacyFramework = { id?: string; name?: string; created_at?: number };
-
-function migrateFrameworks(
-  allData: Record<string, unknown>
-): { didMigrate: boolean; frameworks: Array<{ id: string; name: string; content: string; updated_at: number }> } {
-  const current = Array.isArray(allData.ltc_custom_frameworks)
-    ? (allData.ltc_custom_frameworks as Array<{ id: string; name: string; content: string; updated_at: number }>)
-    : [];
-  if (current.length > 0) {
-    return { didMigrate: false, frameworks: current };
-  }
-  const legacy = Array.isArray(allData.ltc_frameworks)
-    ? (allData.ltc_frameworks as LegacyFramework[])
-    : [];
-  if (legacy.length === 0) {
-    return { didMigrate: false, frameworks: [] };
-  }
-  const migrated = legacy
-    .filter((item) => item && typeof item.name === 'string')
-    .map((item) => ({
-      id: typeof item.id === 'string' ? item.id : `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: item.name as string,
-      content: item.name as string,
-      updated_at: typeof item.created_at === 'number' ? item.created_at : Date.now()
-    }));
-  return { didMigrate: true, frameworks: migrated };
-}
+import { FrameworkStore } from '../core/storage/FrameworkStore';
 
 function handleMessage(
   request: MessagePayload,
@@ -36,17 +9,16 @@ function handleMessage(
 ): boolean {
   try {
     if (request.type === 'GET_STATE') {
-      chrome.storage.local.get(null, (allData) => {
-        const { didMigrate, frameworks } = migrateFrameworks(allData as Record<string, unknown>);
-        if (didMigrate) {
-          chrome.storage.local.set({ ltc_custom_frameworks: frameworks }, () => {
-            (allData as Record<string, unknown>).ltc_custom_frameworks = frameworks;
+      FrameworkStore.getFrameworks()
+        .then(() => {
+          chrome.storage.local.get(null, (allData) => {
             sendResponse(allData as MessageResponse);
           });
-          return;
-        }
-        sendResponse(allData as MessageResponse);
-      });
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
@@ -78,38 +50,87 @@ function handleMessage(
       return true;
     }
 
-    if (request.type === 'SAVE_CUSTOM_FRAMEWORKS' && request.frameworks) {
-      chrome.storage.local.set({ ltc_custom_frameworks: request.frameworks }, () => {
-        sendResponse({ success: true });
-      });
+    if (request.type === 'ADD_HISTORY_ENTRY' && request.historyEntry) {
+      HistoryService.addEntry(request.historyEntry)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
-    if (request.type === 'HISTORY_APPEND' && request.historyEntry) {
-      HistoryService.appendEntry(request.historyEntry).then(() => {
-        sendResponse({ success: true });
-      });
+    if (request.type === 'SET_HISTORY' && request.history) {
+      HistoryService.setHistory(request.history)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
-    if (request.type === 'HISTORY_DELETE' && request.historyId) {
-      HistoryService.deleteEntry(request.historyId).then(() => {
-        sendResponse({ success: true });
-      });
+    if (request.type === 'DELETE_HISTORY' && typeof request.historyIndex === 'number') {
+      HistoryService.deleteAt(request.historyIndex)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
-    if (request.type === 'HISTORY_SET' && request.history) {
-      HistoryService.setHistory(request.history).then(() => {
-        sendResponse({ success: true });
-      });
+    if (request.type === 'DELETE_HISTORY' && typeof request.historyId === 'string') {
+      HistoryService.getHistory()
+        .then((history) => {
+          const next = history.filter((item) => item.id !== request.historyId);
+          return HistoryService.setHistory(next);
+        })
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
-    if (request.type === 'HISTORY_CLEAR') {
-      HistoryService.clearHistory().then(() => {
-        sendResponse({ success: true });
-      });
+    if (request.type === 'CLEAR_HISTORY') {
+      HistoryService.clear()
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
+      return true;
+    }
+
+    if (request.type === 'SAVE_FRAMEWORK' && request.framework) {
+      FrameworkStore.saveFramework(request.framework)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
+      return true;
+    }
+
+    if (request.type === 'DELETE_FRAMEWORK' && request.frameworkId) {
+      FrameworkStore.deleteFramework(request.frameworkId)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
+      return true;
+    }
+
+    if (request.type === 'SET_ACTIVE_FRAMEWORK' && request.frameworkId) {
+      FrameworkStore.setActiveFramework(request.frameworkId)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          sendResponse({ error: message });
+        });
       return true;
     }
 
@@ -155,11 +176,9 @@ chrome.runtime.onMessageExternal.addListener(
   }
 );
 
-chrome.runtime.onMessage.addListener(
-  (request: MessagePayload, _sender, sendResponse: (response: MessageResponse) => void) => {
-    return handleMessage(request, sendResponse);
-  }
-);
+chrome.runtime.onMessage.addListener((request: MessagePayload, _sender, sendResponse: (response: MessageResponse) => void) => {
+  return handleMessage(request, sendResponse);
+});
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local') return;
@@ -168,7 +187,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     ltc_mode?: string;
     ltc_latest_response?: ResponseRecord;
     ltc_last_thinking_steps?: Array<{ title: string; desc: string }>;
-    ltc_custom_frameworks?: Array<{ id: string; name: string; content: string; updated_at: number }>;
+    ltc_frameworks?: Array<{ id: string; name: string; description: string; systemPrompt: string; isActive: boolean }>;
   } = {};
   if (changes.ltc_active) payload.ltc_active = Boolean(changes.ltc_active.newValue);
   if (changes.ltc_mode) {
@@ -179,14 +198,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     payload.ltc_latest_response = changes.ltc_latest_response.newValue as ResponseRecord | undefined;
   }
   if (changes.ltc_last_thinking_steps) {
-    payload.ltc_last_thinking_steps = Array.isArray(changes.ltc_last_thinking_steps.newValue)
-      ? changes.ltc_last_thinking_steps.newValue
-      : [];
+    payload.ltc_last_thinking_steps = changes.ltc_last_thinking_steps.newValue as Array<{ title: string; desc: string }> | undefined;
   }
-  if (changes.ltc_custom_frameworks) {
-    payload.ltc_custom_frameworks = Array.isArray(changes.ltc_custom_frameworks.newValue)
-      ? changes.ltc_custom_frameworks.newValue
-      : [];
+  if (changes.ltc_frameworks) {
+    payload.ltc_frameworks = changes.ltc_frameworks.newValue as Array<{ id: string; name: string; description: string; systemPrompt: string; isActive: boolean }> | undefined;
   }
   if (Object.keys(payload).length === 0) return;
 

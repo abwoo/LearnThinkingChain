@@ -10,30 +10,17 @@ import { ShadowHost } from '@ui/shadow/ShadowHost';
 import { FloatingHub } from '@ui/shadow/FloatingHub';
 import { PromptMiddleware } from '@core/engine/PromptMiddleware';
 import { CognitiveProfileService, UserCognitiveProfile } from '@core/engine/CognitiveProfile';
+import { PromptEngine } from '@core/PromptEngine';
 import { ErrorBoundary } from '../utils/ErrorBoundary';
 import { defaultLogger } from '../utils/logger';
 import type { ProtocolMap } from '../types/Protocols';
+import type { HistoryEntry } from '../core/services/HistoryService';
 
 // State
 let isActive = false;
 let currentMode = 'novice';
 let profile: UserCognitiveProfile | null = null;
 let protocols: ProtocolMap = getDefaultProtocols();
-let customFrameworks: Array<{ id: string; name: string; content: string; updated_at: number }> = [];
-type LegacyFramework = { id?: string; name?: string; created_at?: number };
-
-function migrateLegacyFrameworks(
-  legacy: LegacyFramework[]
-): Array<{ id: string; name: string; content: string; updated_at: number }> {
-  return legacy
-    .filter((item) => item && typeof item.name === 'string')
-    .map((item) => ({
-      id: typeof item.id === 'string' ? item.id : `fw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: item.name as string,
-      content: item.name as string,
-      updated_at: typeof item.created_at === 'number' ? item.created_at : Date.now()
-    }));
-}
 const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // Components
@@ -65,18 +52,12 @@ async function initialize() {
     }
 
     // Load active state
-    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode', 'ltc_custom_frameworks', 'ltc_frameworks']);
+    const state = await chrome.storage.local.get(['ltc_active', 'ltc_mode']);
     isActive = Boolean(state.ltc_active);
     const storedMode = typeof state.ltc_mode === 'string' ? state.ltc_mode : '';
     currentMode = storedMode && protocols[storedMode] ? storedMode : Object.keys(protocols)[0] || 'novice';
     if (currentMode !== storedMode) {
       await chrome.storage.local.set({ ltc_mode: currentMode });
-    }
-    if (Array.isArray(state.ltc_custom_frameworks) && state.ltc_custom_frameworks.length > 0) {
-      customFrameworks = state.ltc_custom_frameworks;
-    } else if (Array.isArray(state.ltc_frameworks) && state.ltc_frameworks.length > 0) {
-      customFrameworks = migrateLegacyFrameworks(state.ltc_frameworks as LegacyFramework[]);
-      await chrome.storage.local.set({ ltc_custom_frameworks: customFrameworks });
     }
 
     // Initialize circuit breaker
@@ -151,17 +132,6 @@ async function initialize() {
         }
         updateFloatingHub();
       }
-
-      if (changes.ltc_last_thinking_steps) {
-        updateFloatingHub();
-      }
-
-      if (changes.ltc_custom_frameworks) {
-        customFrameworks = Array.isArray(changes.ltc_custom_frameworks.newValue)
-          ? changes.ltc_custom_frameworks.newValue
-          : [];
-        updateFloatingHub();
-      }
     });
 
     defaultLogger.info('Content script initialized');
@@ -196,58 +166,26 @@ async function handleInterception(
   value: string,
   _element: HTMLElement
 ): Promise<string | null> {
-  if (!isActive || !profile) {
+  if (!isActive) {
     return null; // Allow original
   }
 
   return await errorBoundary!.wrap(async () => {
-    const protocol = protocols[currentMode];
-    if (!protocol) {
-      defaultLogger.warn('Protocol not found', { mode: currentMode });
-      return null;
-    }
+    const framework = await PromptEngine.getActiveFramework();
+    const wrapped = PromptEngine.wrapWithFramework(framework, value);
 
-    // Process through middleware
-    const processed = await circuitBreaker!.execute(
-      async () => {
-        return await PromptMiddleware.process({
-          originalInput: value,
-          protocol,
-          profile: profile!,
-          sessionId
-        });
-      },
-      () => {
-        // Fallback: return null to allow original
-        defaultLogger.warn('Circuit breaker fallback: allowing original input');
-        return null;
+    // Store lightweight session history for hub UI
+    chrome.runtime.sendMessage({
+      type: 'ADD_HISTORY_ENTRY',
+      historyEntry: {
+        id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        title: framework.name,
+        desc: `Input: ${value.slice(0, 80)}`,
+        url: window.location.href,
+        timestamp: Date.now()
       }
-    );
-
-    if (!processed) {
-      return null;
-    }
-
-    // Update profile with session log
-    await CognitiveProfileService.addSessionLog(profile!, {
-      logicBridgeUsed: processed.logicBridges?.join(', ') ?? '',
-      promptText: value,
-      responseLength: 0,
-      skillsDetected: []
     });
-
-    await CognitiveProfileService.save(profile!);
-
-    const protocolName = protocol.name || currentMode;
-    const bridges = processed.logicBridges?.slice(0, 3).join(', ') || 'No bridges';
-    const nextEntry = {
-      title: `Mode: ${protocolName}`,
-      desc: `Bridges: ${bridges}`,
-      created_at: Date.now()
-    };
-    chrome.runtime.sendMessage({ type: 'HISTORY_APPEND', historyEntry: nextEntry });
-
-    return processed.wrappedPrompt;
+    return wrapped;
   }) ?? null;
 }
 
@@ -265,7 +203,6 @@ function updateFloatingHub() {
     currentMode,
     modes,
     protocols,
-    customFrameworks,
     onToggleActive: async (active) => {
       isActive = active;
       await chrome.storage.local.set({ ltc_active: active });

@@ -130,10 +130,7 @@
             </div>
 
             <div class="bento-card medium glass">
-              <div class="card-header">
-                <h3>实时思维脉冲</h3>
-                <button class="btn-glass btn-small" id="clear-history">清空历史</button>
-              </div>
+              <h3>实时思维脉冲</h3>
               <div id="live-chain" class="chain-stream"></div>
             </div>
           </div>
@@ -143,50 +140,30 @@
           <div class="view-header">
             <h2>框架工坊 <span class="dim">Framework Workshop</span></h2>
           </div>
-          <div class="workshop-grid glass">
-            <div class="protocol-editor">
-              <div class="editor-header">
-                <h3>协议定义 (JSON)</h3>
-                <span class="editor-status" id="protocol-save-status">未同步</span>
+          <div class="framework-board">
+            <div class="framework-list glass">
+              <div class="board-header">
+                <h3>框架列表</h3>
+                <button class="btn-primary" id="framework-add">新增框架</button>
               </div>
-              <textarea id="protocol-json-editor" class="mono" aria-label="协议定义"></textarea>
-              <button class="btn-primary" id="save-protocols">应用新协议</button>
+              <div id="framework-list" class="framework-items"></div>
             </div>
-            <div class="protocol-matrix">
-              <h3>模式矩阵</h3>
-              <div id="protocol-matrix" class="matrix-grid"></div>
-            </div>
-          </div>
-          <div class="workshop-grid glass">
-            <div class="protocol-editor">
-              <div class="editor-header">
-                <h3>标签体系 (JSON)</h3>
-                <span class="editor-status" id="taxonomy-save-status">未同步</span>
+            <div class="framework-editor glass">
+              <div class="board-header">
+                <h3>框架编辑器</h3>
+                <span class="editor-status" id="framework-status">未同步</span>
               </div>
-              <textarea id="taxonomy-json-editor" class="mono" aria-label="标签体系"></textarea>
-              <button class="btn-primary" id="save-taxonomy">应用标签体系</button>
-            </div>
-            <div class="protocol-matrix">
-              <h3>标签说明</h3>
-              <div class="tag-help">
-                <div class="dim">格式示例：</div>
-                <pre class="mono tag-example">{"topics":[{"label":"力学","keywords":["摩擦","牛顿"]}],"modules":[{"label":"物理","keywords":["电路","热学"]}],"types":[{"label":"推导证明","keywords":["证明","推导"]}]}</pre>
+              <label class="editor-label" for="framework-name">Framework Name</label>
+              <input id="framework-name" class="extension-input" type="text" placeholder="输入框架名称" />
+              <label class="editor-label" for="framework-description">Description</label>
+              <textarea id="framework-description" class="extension-input" rows="2" placeholder="简短描述"></textarea>
+              <label class="editor-label" for="framework-prompt">System Prompt Template</label>
+              <textarea id="framework-prompt" class="mono" rows="10" placeholder="请输入系统提示词模板"></textarea>
+              <div class="framework-actions">
+                <button class="btn-glass" id="framework-save">保存 / 更新</button>
+                <button class="btn-glass" id="framework-delete">删除</button>
+                <button class="btn-primary" id="framework-set-active">设为当前注入</button>
               </div>
-            </div>
-          </div>
-          <div class="workshop-grid glass">
-            <div class="protocol-editor">
-              <div class="editor-header">
-                <h3>自定义框架</h3>
-                <span class="editor-status" id="framework-save-status">未同步</span>
-              </div>
-              <input id="framework-name-input" class="extension-input" placeholder="框架名称" aria-label="框架名称" />
-              <textarea id="framework-content-input" class="mono" placeholder="框架描述/正文" aria-label="框架内容"></textarea>
-              <button class="btn-primary" id="add-framework">添加框架</button>
-            </div>
-            <div class="protocol-matrix">
-              <h3>已添加</h3>
-              <div id="framework-list" class="tag-help"></div>
             </div>
           </div>
         </section>

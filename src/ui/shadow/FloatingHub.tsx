@@ -7,15 +7,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ProtocolMap } from '../../types/Protocols';
-import type { HistoryEntry } from '../../core/services/HistoryService';
-import type { CustomFramework } from '../../messaging/Types';
+import { HistoryService, type HistoryEntry } from '../../core/services/HistoryService';
 
 export interface FloatingHubProps {
   isActive: boolean;
   currentMode: string;
   modes: Array<{ id: string; name: string }>;
   protocols?: ProtocolMap;
-  customFrameworks?: CustomFramework[];
   onToggleActive: (active: boolean) => void;
   onModeChange: (modeId: string) => void;
   status?: {
@@ -79,64 +77,49 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
   currentMode,
   modes,
   protocols: propProtocols,
-  customFrameworks: propFrameworks,
   onToggleActive,
   onModeChange,
   status
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [protocols, setProtocols] = useState<Record<string, Record<string, string>>>({});
-  const [customFrameworks, setCustomFrameworks] = useState<CustomFramework[]>([]);
   const [profileTrend, setProfileTrend] = useState<string>('');
-  const hubRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 20, y: 20 });
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const normalizeHistory = (items: unknown): HistoryEntry[] => {
-    if (!Array.isArray(items)) return [];
-    return items
-      .map((item) => {
-        if (!item || typeof item !== 'object') return null;
-        const data = item as Partial<HistoryEntry>;
-        if (typeof data.title !== 'string' || typeof data.desc !== 'string') return null;
-        return {
-          id: typeof data.id === 'string' ? data.id : `hist_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          title: data.title,
-          desc: data.desc,
-          created_at: typeof data.created_at === 'number' ? data.created_at : Date.now()
-        };
-      })
-      .filter((item): item is HistoryEntry => Boolean(item));
-  };
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const hubRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const data = await chrome.storage.local.get([
+      const data = (await chrome.storage.local.get([
         'ltc_last_thinking_steps',
         'ltc_protocols',
         'ltc_profile',
-        'ltc_hub_position',
-        'ltc_custom_frameworks'
-      ]);
-      setHistory(normalizeHistory(data.ltc_last_thinking_steps));
+        'ltc_hub_position'
+      ])) as {
+        ltc_last_thinking_steps?: HistoryEntry[];
+        ltc_protocols?: Record<string, Record<string, string>>;
+        ltc_profile?: { thinking_trend?: string };
+        ltc_hub_position?: { x?: number; y?: number };
+      };
+      const steps = Array.isArray(data.ltc_last_thinking_steps) ? data.ltc_last_thinking_steps : [];
+      setHistory(steps as HistoryEntry[]);
       const storedProtocols = typeof data.ltc_protocols === 'object' && data.ltc_protocols ? data.ltc_protocols : {};
       setProtocols(storedProtocols as Record<string, Record<string, string>>);
       const trend = data.ltc_profile?.thinking_trend;
       setProfileTrend(typeof trend === 'string' ? trend : '');
-      if (Array.isArray(data.ltc_custom_frameworks)) {
-        setCustomFrameworks(data.ltc_custom_frameworks);
-      }
+
       const pos = data.ltc_hub_position;
       if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
         setPosition({ x: pos.x, y: pos.y });
       } else {
         requestAnimationFrame(() => {
-          const rect = hubRef.current?.getBoundingClientRect();
-          const width = rect?.width ?? 320;
-          const x = Math.max(20, window.innerWidth - width - 20);
-          setPosition({ x, y: 20 });
+          const width = hubRef.current?.getBoundingClientRect().width || 320;
+          const x = Math.max(8, window.innerWidth - width - 28);
+          const y = 20;
+          setPosition({ x, y });
         });
       }
     };
@@ -144,26 +127,16 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
 
     const onChanged = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.ltc_last_thinking_steps) {
-        setHistory(normalizeHistory(changes.ltc_last_thinking_steps.newValue));
+        const steps = changes.ltc_last_thinking_steps.newValue;
+        setHistory(Array.isArray(steps) ? (steps as HistoryEntry[]) : []);
       }
       if (changes.ltc_protocols) {
-        const next = changes.ltc_protocols.newValue;
+        const next = changes.ltc_protocols.newValue as Record<string, Record<string, string>> | undefined;
         setProtocols(typeof next === 'object' && next ? next : {});
       }
       if (changes.ltc_profile) {
-        const trend = changes.ltc_profile.newValue?.thinking_trend;
+        const trend = (changes.ltc_profile.newValue as { thinking_trend?: string } | undefined)?.thinking_trend;
         setProfileTrend(typeof trend === 'string' ? trend : '');
-      }
-      if (changes.ltc_hub_position) {
-        const pos = changes.ltc_hub_position.newValue;
-        if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
-          setPosition({ x: pos.x, y: pos.y });
-        }
-      }
-      if (changes.ltc_custom_frameworks) {
-        setCustomFrameworks(Array.isArray(changes.ltc_custom_frameworks.newValue)
-          ? changes.ltc_custom_frameworks.newValue
-          : []);
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -174,31 +147,19 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
 
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-
-      setPosition(prev => {
-        const rect = hubRef.current?.getBoundingClientRect();
-        const width = rect?.width ?? 320;
-        const height = rect?.height ?? 140;
-        const maxX = Math.max(0, window.innerWidth - width);
-        const maxY = Math.max(0, window.innerHeight - height);
-        const nextX = Math.min(maxX, Math.max(0, prev.x + deltaX));
-        const nextY = Math.min(maxY, Math.max(0, prev.y + deltaY));
-        return { x: nextX, y: nextY };
-      });
-
-      setDragStart({ x: e.clientX, y: e.clientY });
+      const rect = hubRef.current?.getBoundingClientRect();
+      const width = rect?.width || 320;
+      const height = rect?.height || 160;
+      const maxX = Math.max(8, window.innerWidth - width - 8);
+      const maxY = Math.max(8, window.innerHeight - height - 8);
+      const nextX = Math.min(maxX, Math.max(8, e.clientX - dragOffset.x));
+      const nextY = Math.min(maxY, Math.max(8, e.clientY - dragOffset.y));
+      setPosition({ x: nextX, y: nextY });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      chrome.storage.local.set({
-        ltc_hub_position: {
-          x: position.x,
-          y: position.y
-        }
-      });
+      chrome.storage.local.set({ ltc_hub_position: position });
     };
 
     if (isDragging) {
@@ -210,26 +171,27 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, position.x, position.y]);
+  }, [isDragging, dragOffset, position]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
+    setDragOffset({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
 
   const containerStyle: React.CSSProperties = {
-    left: position.x,
-    top: position.y,
+    left: `${position.x}px`,
+    top: `${position.y}px`,
     right: 'auto'
   };
 
   const protocolPreview = useMemo(() => {
-    const source = propProtocols ?? protocols;
-    const p = source[currentMode] || {};
-    const q1 = p.q1_blind_spot || p.q1 || '—';
-    const q2 = p.q2_entropy || p.q2 || '—';
-    const q3 = p.q3_backtrack || p.q3 || '—';
-    const q4 = p.q4_handover || p.q4 || '—';
+    const source = (propProtocols ?? protocols) as Record<string, Record<string, string>>;
+    const raw = source[currentMode];
+    const p = (raw && typeof raw === 'object' ? (raw as Record<string, string>) : {});
+    const q1 = p.q1_blind_spot ?? p.q1 ?? '—';
+    const q2 = p.q2_entropy ?? p.q2 ?? '—';
+    const q3 = p.q3_backtrack ?? p.q3 ?? '—';
+    const q4 = p.q4_handover ?? p.q4 ?? '—';
     return [
       `Mode: ${currentMode}`,
       `Q1: ${q1}`,
@@ -238,10 +200,6 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
       `Q4: ${q4}`
     ].join('\n');
   }, [protocols, propProtocols, currentMode]);
-
-  const frameworkList = useMemo(() => {
-    return (propFrameworks ?? customFrameworks).slice(0, 6);
-  }, [propFrameworks, customFrameworks]);
 
   return (
     <div className="ltc-hub" style={containerStyle} ref={hubRef}>
@@ -327,23 +285,56 @@ const FloatingHubComponent: React.FC<FloatingHubProps> = ({
           <div className="ltc-section-title">SESSION HISTORY</div>
           <div className="ltc-history-list">
             {history.length === 0 && <div className="ltc-empty">暂无历史，发送一次提示后生成</div>}
-            {history.map((item, index) => (
-              <div key={`${item.title}-${index}`} className="ltc-history-item">
-                <strong>{item.title}</strong>
-                <span>{item.desc}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="ltc-section-title">CUSTOM FRAMEWORKS</div>
-          <div className="ltc-history-list">
-            {frameworkList.length === 0 && <div className="ltc-empty">暂无自定义框架</div>}
-            {frameworkList.map((item) => (
-              <div key={item.id} className="ltc-history-item">
-                <strong>{item.name}</strong>
-                <span>{item.content}</span>
-              </div>
-            ))}
+            {history.map((item, index) => {
+              const id = item.id || `${index}`;
+              const isExpanded = Boolean(expandedItems[id]);
+              const hasLongDesc = item.desc && item.desc.length > 80;
+              return (
+                <div key={id} className={`ltc-history-item ${isExpanded ? 'expanded' : ''}`}>
+                  <div className="ltc-history-header">
+                    <button
+                      className="ltc-history-title"
+                      onClick={() => {
+                        if (item.url) {
+                          window.location.assign(item.url);
+                        }
+                      }}
+                      aria-label="Jump to Gemini conversation"
+                    >
+                      {item.title}
+                    </button>
+                    <div className="ltc-history-actions">
+                      {hasLongDesc && (
+                        <button
+                          className="ltc-history-toggle"
+                          onClick={() =>
+                            setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }))
+                          }
+                          aria-label="Toggle history detail"
+                        >
+                          {isExpanded ? '收起' : '展开'}
+                        </button>
+                      )}
+                      <button
+                        className="ltc-history-delete"
+                        onClick={async () => {
+                          await HistoryService.deleteAt(index);
+                        }}
+                        aria-label="Delete history item"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                  <div className="ltc-history-desc">{item.desc}</div>
+                  {item.timestamp && (
+                    <div className="ltc-history-time">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

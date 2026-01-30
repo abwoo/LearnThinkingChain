@@ -3,13 +3,7 @@ import type { ProtocolMap } from '../types/Protocols';
 import type { ExtensionSettings } from '../types/Settings';
 import type { ResponseRecord } from '../types/Response';
 import type { HistoryEntry } from '../core/services/HistoryService';
-
-export interface CustomFramework {
-  id: string;
-  name: string;
-  content: string;
-  updated_at: number;
-}
+import type { ThinkingFramework } from '../core/storage/FrameworkStore';
 
 export type MessageType =
   | 'GET_STATE'
@@ -17,12 +11,14 @@ export type MessageType =
   | 'SAVE_MODE'
   | 'SAVE_PROTOCOLS'
   | 'SAVE_SETTINGS'
-  | 'SAVE_CUSTOM_FRAMEWORKS'
   | 'WIPE_MEMORY'
-  | 'HISTORY_APPEND'
-  | 'HISTORY_DELETE'
-  | 'HISTORY_CLEAR'
-  | 'HISTORY_SET';
+  | 'ADD_HISTORY_ENTRY'
+  | 'SET_HISTORY'
+  | 'DELETE_HISTORY'
+  | 'CLEAR_HISTORY'
+  | 'SAVE_FRAMEWORK'
+  | 'DELETE_FRAMEWORK'
+  | 'SET_ACTIVE_FRAMEWORK';
 
 export interface MessagePayload {
   type: MessageType;
@@ -30,10 +26,12 @@ export interface MessagePayload {
   mode?: string;
   protocols?: ProtocolMap;
   settings?: ExtensionSettings;
-  frameworks?: CustomFramework[];
   historyEntry?: HistoryEntry;
-  historyId?: string;
   history?: HistoryEntry[];
+  historyIndex?: number;
+  historyId?: string;
+  framework?: ThinkingFramework;
+  frameworkId?: string;
 }
 
 export interface MessageResponse {
@@ -45,10 +43,9 @@ export interface ExtensionState {
   ltc_active?: boolean;
   ltc_mode?: string;
   ltc_profile?: CognitiveProfile;
-  ltc_last_thinking_steps?: HistoryEntry[];
+  ltc_last_thinking_steps?: Array<{ title: string; desc: string }>;
   ltc_protocols?: ProtocolMap;
   ltc_settings?: ExtensionSettings;
-  ltc_custom_frameworks?: CustomFramework[];
   ltc_latest_response?: ResponseRecord;
   ltc_response_history?: ResponseRecord[];
 }
@@ -58,7 +55,7 @@ export interface PushPayload {
   ltc_mode?: string;
   ltc_latest_response?: ResponseRecord;
   ltc_last_thinking_steps?: HistoryEntry[];
-  ltc_custom_frameworks?: CustomFramework[];
+  ltc_frameworks?: ThinkingFramework[];
 }
 
 export type ExternalMessage = {
